@@ -1,19 +1,26 @@
 {
-  "name": "tachikoma",
+  "name": "tachikomas",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "dev": "tsup --watch",
     "build": "tsup",
+    "changeset": "changeset",
+    "release": "changeset publish",
+    "publish": "changeset publish --registry=https://registry.npmjs.com/",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@changesets/cli": "^2.26.2",
     "@types/node": "^20.4.7",
     "tsup": "^7.2.0",
     "typescript": "^5.1.6"
+  },
+  "dependencies": {
+    "vite": "^4.4.5"
   }
 }

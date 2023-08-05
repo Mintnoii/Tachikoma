@@ -1,6 +1,6 @@
 {
-  "name": "@tachikoma/core",
-  "version": "1.0.0",
+  "name": "@tachikomas/core",
+  "version": "1.0.1",
   "description": "",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -29,6 +29,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@tachikoma/shared": "workspace:*"
+    "@tachikomas/shared": "workspace:*"
   }
 }

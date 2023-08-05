@@ -4,7 +4,10 @@ export const isArray = Array.isArray;
 export const isMap = (val: unknown): val is Map<any, any> => toString.call(val) === '[object Map]';
 export const isSet = (val: unknown): val is Set<any> => toString.call(val) === '[object Set]';
 
-export const isDate = (val: unknown): val is Date => toString.call(val) === '[object Date]';
+export const isDate = (val: unknown): val is Date => {
+  console.log('sdsdsdsdd');
+   return toString.call(val) === '[object Date]'
+};
 export const isBoolean = (val: unknown): val is boolean => typeof val === 'boolean';
 export const isFunction = <T extends Function>(val: unknown): val is T => typeof val === 'function';
 export const isNumber = (val: unknown): val is number => typeof val === 'number';

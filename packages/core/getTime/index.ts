@@ -1,4 +1,4 @@
-import { isDate } from '@tachikoma/shared'
+import { isDate } from '@tachikomas/shared'
 
 
 export const getTime = (date: Date | string | number): number => {

@@ -17,14 +17,14 @@
     "noUnusedLocals": true,
     "jsx": "react-jsx",
     "paths": {
-      "@tachikoma/shared": ["./packages/shared/index.ts"],
-      "@tachikoma/shared/*": ["./packages/shared/*"],
-      "@tachikoma/core": ["./packages/core/index.ts"],
-      "@tachikoma/core/*": ["./packages/core/*"],
-      // "@tachikoma/vue-hooks": ["./packages/vue-hooks/index.ts"],
-      // "@tachikoma/vue-hooks/*": ["./packages/vue-hooks/*"],
-      // "@tachikoma/react-hooks": ["./packages/react-hooks/index.ts"],
-      // "@tachikoma/react-hooks/*": ["./packages/react-hooks/*"]
+      "@tachikomas/shared": ["./packages/shared/index.ts"],
+      "@tachikomas/shared/*": ["./packages/shared/*"],
+      "@tachikomas/core": ["./packages/core/index.ts"],
+      "@tachikomas/core/*": ["./packages/core/*"],
+      "@tachikomas/vue-demo": ["./packages/vue-demo/index.ts"],
+      "@tachikomas/vue-demo/*": ["./packages/vue-demo/*"],
+      // "@tachikomas/react-hooks": ["./packages/react-hooks/index.ts"],
+      // "@tachikomas/react-hooks/*": ["./packages/react-hooks/*"]
     }
   },
   "include": [
