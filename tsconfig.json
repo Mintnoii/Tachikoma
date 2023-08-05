@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2015",
+    "module": "esnext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "declaration": true,
+    "declarationDir": "./types",
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "noUnusedLocals": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@tachikoma/shared": ["./packages/shared/index.ts"],
+      "@tachikoma/shared/*": ["./packages/shared/*"],
+      "@tachikoma/core": ["./packages/core/index.ts"],
+      "@tachikoma/core/*": ["./packages/core/*"],
+      // "@tachikoma/vue-hooks": ["./packages/vue-hooks/index.ts"],
+      // "@tachikoma/vue-hooks/*": ["./packages/vue-hooks/*"],
+      // "@tachikoma/react-hooks": ["./packages/react-hooks/index.ts"],
+      // "@tachikoma/react-hooks/*": ["./packages/react-hooks/*"]
+    }
+  },
+  "include": [
+    "packages",
+    "*.d.ts",
+  ],
+  "exclude": ["node_modules", "**/**/*.md", "**/dist", "dist"]
+}
