@@ -19,3 +19,12 @@ A monorepo using:
 - rollup -c
 - return rollup config
 - end
+
+
+## Shared
+
+### frp 函数响应式编程工具函数
+- createSingleton 创建单例方法
+
+### url url相关工具函数
+- getBaseURL 获取基础 url
