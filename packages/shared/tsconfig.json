@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    // 支持 commonjs 模块的 default import，如 import path from 'path'
+    // 否则只能通过 import * as path from 'path' 进行导入
+    "esModuleInterop": true,
+    "target": "ESNext",
+    "moduleResolution": "node",
+    "module": "ESNext",
+    "strict": true
+  }
+}

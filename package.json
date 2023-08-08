@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsup --watch",
     "build": "tsup",
+    "build-shared": "cd packages/shared && pnpm build",
     "changeset": "changeset",
     "release": "changeset publish",
     "publish": "changeset publish --registry=https://registry.npmjs.com/",

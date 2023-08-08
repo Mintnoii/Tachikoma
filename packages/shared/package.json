@@ -1,25 +1,37 @@
 {
   "name": "@tachikomas/shared",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "description": "tachikomas shared utils",
   "keywords": [],
   "author": "",
-  "license": "ISC",
-  "module": "./dist/index.mjs",
-  "unpkg": "./dist/index.iife.js",
-  "types": "./dist/index.d.ts",
+  "main": "",
+  "browser": {
+    ".": "./dist/index.mjs",
+    "./frp": "./dist/frp/index.mjs",
+    "./utils": "./dist/utils/index.mjs"
+  },
   "exports": {
     ".": {
-      "require": "./dist/index.js",
       "import": "./dist/index.mjs",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
-    "./*": "./*"
+    "./frp": {
+      "import": "./dist/frp/index.mjs",
+      "require": "./dist/frp/index.js"
+    },
+    "./utils": {
+      "import": "./dist/utils/index.mjs",
+      "require": "./dist/utils/index.js"
+    }
   },
+  "scripts": {
+    "prepare": "npm run build",
+    "dev": "tsup --watch",
+    "build": "tsup",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {},
+  "license": "ISC",
   "sideEffects": false,
   "engines": {
     "node": ">=14",
