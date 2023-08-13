@@ -16,12 +16,16 @@
       "require": "./dist/index.js"
     },
     "./frp": {
+      "default": "./dist/frp/index.js",
       "import": "./dist/frp/index.mjs",
-      "require": "./dist/frp/index.js"
+      "require": "./dist/frp/index.js",
+      "node": "./dist/frp/index.js"
     },
     "./utils": {
+      "default": "./dist/utils/index.js",
       "import": "./dist/utils/index.mjs",
-      "require": "./dist/utils/index.js"
+      "require": "./dist/utils/index.js",
+      "node": "./dist/utils/index.js"
     }
   },
   "scripts": {
