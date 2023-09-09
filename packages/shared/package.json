@@ -6,31 +6,17 @@
   "author": "",
   "main": "",
   "browser": {
-    ".": "./dist/index.mjs",
-    "./frp": "./dist/frp/index.mjs",
-    "./utils": "./dist/utils/index.mjs",
-    "./types": "./dist/types/index.mjs"
+    "./utils": "./dist/utils.mjs",
+    "./types": "./dist/types.mjs"
   },
   "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
-    },
-    "./frp": {
-      "default": "./dist/frp/index.js",
-      "import": "./dist/frp/index.mjs",
-      "require": "./dist/frp/index.js",
-      "node": "./dist/frp/index.js"
-    },
     "./utils": {
-      "default": "./dist/utils/index.js",
-      "import": "./dist/utils/index.mjs",
-      "require": "./dist/utils/index.js",
-      "node": "./dist/utils/index.js"
+      "import": "./dist/utils.mjs",
+      "require": "./dist/utils.js"
     },
     "./types": {
-      "import": "./dist/types/index.mjs",
-      "require": "./dist/types/index.js"
+      "import": "./dist/types.mjs",
+      "require": "./dist/types.js"
     }
   },
   "scripts": {

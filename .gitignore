@@ -13,7 +13,3 @@ coverage
 # 文件
 .changeset/pre.json
 meta/meta.json
-packages/core/index.ts
-packages/shared/index.ts
-packages/vue-hooks/index.ts
-packages/react-hooks/index.ts
