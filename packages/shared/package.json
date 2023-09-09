@@ -8,7 +8,8 @@
   "browser": {
     ".": "./dist/index.mjs",
     "./frp": "./dist/frp/index.mjs",
-    "./utils": "./dist/utils/index.mjs"
+    "./utils": "./dist/utils/index.mjs",
+    "./types": "./dist/types/index.mjs"
   },
   "exports": {
     ".": {
@@ -26,6 +27,10 @@
       "import": "./dist/utils/index.mjs",
       "require": "./dist/utils/index.js",
       "node": "./dist/utils/index.js"
+    },
+    "./types": {
+      "import": "./dist/types/index.mjs",
+      "require": "./dist/types/index.js"
     }
   },
   "scripts": {

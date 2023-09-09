@@ -2,8 +2,8 @@ import { defineConfig } from 'tsup'
 
 export default defineConfig([
   {
-    // entry: ["types/index.ts", 'index.ts'],
-    entry: ['utils/index.ts', 'frp/index.ts'],
+    // entry: ['index.ts'],
+    entry: ['utils/index.ts', 'types/index.ts','frp/index.ts'],
     format: ['cjs', 'esm'],
     outDir: 'dist',
     target: "esnext", // 指定编译的目标版本

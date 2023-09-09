@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import HelloWorld from './components/HelloWorld.vue'
-import { isDate } from '@tachikomas/shared'
+import {sum} from '@tachikomas/shared/utils'
 
 onMounted(() => {
-  console.log(isDate('123445'));
+  // console.log(is.isDate('12345'));
+  console.log(sum(1,2));
 })
 </script>
 
