@@ -8,19 +8,6 @@ A monorepo using:
 - Vue component library
 
 
-参考 Vue3 打包流程
-- npm run build
-- node scripts/build.js
-- run
-- fs.readdirSync('packages')
-- runParallel
-- build
-- execa
-- rollup -c
-- return rollup config
-- end
-
-
 ## Shared
 
 ### frp 函数响应式编程工具函数
