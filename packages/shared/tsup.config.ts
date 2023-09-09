@@ -2,7 +2,8 @@ import { defineConfig } from 'tsup'
 
 export default defineConfig([
   {
-    // entry: ['index.ts','types/index.ts',],
+    // 如果是数字的形式，且只有一个则打出来的是以 index 命名的文件
+    // entry: ['utils/index.ts'],
     entry: {
       'utils': 'utils/index.ts'
     },

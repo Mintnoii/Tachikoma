@@ -11,7 +11,7 @@ const isSymbol = (val: unknown): val is symbol => typeof val === 'symbol'
 const isObject = (val: unknown): val is Record<any, any> => toString.call(val) === '[object Object]'
 const hasOwn = <T extends object, K extends keyof T>(val: T, key: K): key is K => Object.prototype.hasOwnProperty.call(val, key)
 
-export default {
+export {
   isArray,
   isMap,
   isSet,

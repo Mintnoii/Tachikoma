@@ -2,8 +2,8 @@
   "extends": "./configs/tsconfig.base.json",
   "compilerOptions": {
     "declaration": true,
-    "target": "ES6",
-    "module": "commonjs",
+    "target": "ESNext",
+    "module": "ESNext",
     "baseUrl": "."
   },
   "include": ["**/*.ts"]

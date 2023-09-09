@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import HelloWorld from './components/HelloWorld.vue'
-import {isDate} from '@tachikomas/shared/utils'
+import Utils from '@tachikomas/shared/utils'
 
+const {is} = Utils
 onMounted(() => {
-  // console.log(is.isDate('12345'));
-  console.log(isDate('1997-10-28'));
+  console.log(is.isDate(new Date()),is);
+  // console.log(is.isDate('1997-10-28'));
 })
 </script>
 
