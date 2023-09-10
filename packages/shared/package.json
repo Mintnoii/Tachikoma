@@ -5,14 +5,11 @@
   "keywords": [],
   "author": "",
   "main": "",
-  "browser": {
-    "./utils": "./dist/utils.mjs",
-    "./types": "./dist/types.mjs"
-  },
   "exports": {
     "./utils": {
-      "import": "./dist/utils.mjs",
-      "require": "./dist/utils.js"
+      "types": "./dist/utils/utils.d.ts",
+      "import": "./dist/utils/utils.mjs",
+      "require": "./dist/utils/utils.js"
     },
     "./types": {
       "import": "./dist/types.mjs",
@@ -20,7 +17,7 @@
     }
   },
   "scripts": {
-    "prepare": "npm run build",
+    "prepare": "pnpm run build",
     "dev": "tsup --watch",
     "build": "tsup",
     "test": "echo \"Error: no test specified\" && exit 1"
