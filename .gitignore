@@ -13,3 +13,5 @@ coverage
 # 文件
 .changeset/pre.json
 meta/meta.json
+# comps 输出产物
+*/comps

@@ -18,9 +18,10 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "types": ["@tachikomas/components/components"]
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
-  "extends": "@tachikomas/shared/configs/tsconfig.base.json",
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue", "./shims-vue.d.ts"],
+  // "extends": "@tachikomas/shared/configs/tsconfig.base.json",
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import Utils from '@tachikomas/shared/utils'
-import { Button } from "@tachikomas/components";
+// import { Button } from "@tachikomas/components";
 const {is} = Utils
 onMounted(() => {
   console.log(is.isDate(new Date()),is);
@@ -19,7 +19,7 @@ onMounted(() => {
     </a>
   </div>
   <h1>Vite + Vue</h1>
-  <Button/>
+  <my-button  type="primary">测试按钮</my-button>
 </template>
 
 <style scoped>
