@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import HelloWorld from './components/HelloWorld.vue'
 import Utils from '@tachikomas/shared/utils'
-
+import { Button } from "@tachikomas/components";
 const {is} = Utils
 onMounted(() => {
   console.log(is.isDate(new Date()),is);
@@ -19,7 +18,8 @@ onMounted(() => {
       <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
     </a>
   </div>
-  <HelloWorld msg="Vite + Vue" />
+  <h1>Vite + Vue</h1>
+  <Button/>
 </template>
 
 <style scoped>

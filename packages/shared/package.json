@@ -9,7 +9,8 @@
     "./utils": {
       "types": "./dist/utils/utils.d.ts",
       "import": "./dist/utils/utils.mjs",
-      "require": "./dist/utils/utils.js"
+      "require": "./dist/utils/utils.js",
+      "default": "./dist/utils/index.mjs"
     },
     "./types": {
       "import": "./dist/types.mjs",

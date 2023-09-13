@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@tachikomas/shared": "workspace:*",
+    "@tachikomas/components": "workspace:*",
     "vue": "^3.3.4"
   },
   "devDependencies": {
