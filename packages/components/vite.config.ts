@@ -20,9 +20,9 @@ export default defineConfig({
     //压缩
     minify: false,
     rollupOptions: {
-      //忽略打包vue文件
-      external: ["vue"],
-      input: ["index.ts"],
+      //忽略打包 vue 样式文件
+      external: ['vue', /\.less/,  /\.scss/],
+      input: ["./src/index.ts"],
       output: [
           {
           //打包格式
@@ -49,7 +49,7 @@ export default defineConfig({
       ]
     },
     lib: {
-      entry: "./index.ts",
+      entry: "./src/index.ts",
       name: "comps",
     },
   },
