@@ -19,7 +19,7 @@ onMounted(() => {
     </a>
   </div>
   <h1>Vite + Vue</h1>
-  <my-button  type="primary">测试按钮</my-button>
+  <test-button >测试按钮11</test-button>
 </template>
 
 <style scoped>

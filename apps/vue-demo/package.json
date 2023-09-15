@@ -10,12 +10,13 @@
   },
   "dependencies": {
     "@tachikomas/shared": "workspace:*",
-    "@tachikomas/components": "workspace:*",
+    "@tachikomas/ui": "workspace:*",
     "vue": "^3.3.4"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.2.3",
     "typescript": "^5.0.2",
+    "unocss": "^0.57.2",
     "vite": "^4.4.5",
     "vue-tsc": "^1.8.5"
   }

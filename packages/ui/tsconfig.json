@@ -17,7 +17,9 @@
         "./shims-vue.d.ts",
     ],
     "exclude": [
-        "node_modules"
+        "node_modules",
+         "**/dist/**",
+         "./unocss.config.ts"
     ],
     "allowSyntheticDefaultImports": "true"
 }
