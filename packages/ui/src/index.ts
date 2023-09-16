@@ -5,6 +5,7 @@ import type { App } from 'vue'
 import 'uno.css'
 import Button from './button'
 
+export { Button}
 const install = (app: App) => {
   // for (let n in components) {
   //   app.use((components as any)[n])

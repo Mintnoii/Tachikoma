@@ -12,10 +12,7 @@
       "resolveJsonModule": true,
       "types": ["unplugin-vue-define-options/macros-global"]
     },
-    "include": [
-        "./**/*.*",
-        "./shims-vue.d.ts",
-    ],
+    "include": ["**/*.ts", "**/*.d.ts", "**/*.vue", "**/*.tsx", "./shims-vue.d.ts"],
     "exclude": [
         "node_modules",
          "**/dist/**",

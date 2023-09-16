@@ -3,7 +3,7 @@
   "type": "module",
   "version": "1.0.0",
   "description": "",
-  "main": "./dist/ui.umd.cjs",
+  "main": "./dist/ui.cjs",
   "module": "./dist/ui.js",
   "types": "./dist/index.d.ts",
   "private": false,
@@ -16,10 +16,11 @@
     },
     "./dist/style.css": "./dist/index.css"
   },
+  "files": ["dist"],
   "sideEffects": false,
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build --watch",
     "preinstall": "npx only-allow pnpm",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

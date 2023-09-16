@@ -13,7 +13,10 @@ export default defineConfig({
     Vue(),
     vueJsx(),
     dts({
-      entryRoot: './src',
+      include: ['./src'],
+      // outDir: "./dist",
+      insertTypesEntry: false, // 插入TS 入口
+      copyDtsFiles: true, // 是否将源码里的 .d.ts 文件复制到 outputDir
     }),
     DefineOptions(),
     UnoCSS({
@@ -40,6 +43,6 @@ export default defineConfig({
     minify: false, //压缩
     // sourcemap: true, // 输出单独 source文件
     // reportCompressedSize: true,
-    cssCodeSplit: true,
+    cssCodeSplit: true, // 在编译的时候是否要独立输出 css
   },
 });
