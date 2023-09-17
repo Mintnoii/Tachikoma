@@ -1,7 +1,6 @@
 import { defineConfig } from "vite"
 import Vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
-import dts from 'vite-plugin-dts'
 import DefineOptions from "unplugin-vue-define-options/vite"
 import UnoCSS from 'unocss/vite'
 
@@ -12,12 +11,6 @@ export default defineConfig({
   plugins: [
     Vue(),
     vueJsx(),
-    dts({
-      include: ['./src'],
-      // outDir: "./dist",
-      insertTypesEntry: false, // 插入TS 入口
-      copyDtsFiles: true, // 是否将源码里的 .d.ts 文件复制到 outputDir
-    }),
     DefineOptions(),
     UnoCSS({
       include: [/.*\/ui\.js(.*)?$/, './**/*.vue', './**/*.md'],

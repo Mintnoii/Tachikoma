@@ -10,9 +10,10 @@
       "moduleResolution": "Node",
       "lib": ["esnext", "dom"],
       "resolveJsonModule": true,
+      "outDir": "dist",
       "types": ["unplugin-vue-define-options/macros-global"]
     },
-    "include": ["**/*.ts", "**/*.d.ts", "**/*.vue", "**/*.tsx", "./shims-vue.d.ts"],
+    "include": ["src/**/*", "./shims-vue.d.ts"],
     "exclude": [
         "node_modules",
          "**/dist/**",

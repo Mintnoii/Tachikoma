@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import Utils from '@tachikomas/shared/utils'
-// import { Button } from "@tachikomas/components";
-const {is} = Utils
+// import { Button as WQButton } from "@tachikomas/ui";
 onMounted(() => {
-  console.log(is.isDate(new Date()),is);
   // console.log(is.isDate('1997-10-28'));
 })
 </script>
@@ -19,8 +16,8 @@ onMounted(() => {
     </a>
   </div>
   <h1>Vite + Vue</h1>
-  <test-button type="danger">测试按钮11</test-button>
-  <test-button >dssdsd</test-button>
+  <WQButton type="danger">测试按钮11</WQButton>
+  <WQButton >dssdsd</WQButton>
 </template>
 
 <style scoped>

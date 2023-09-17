@@ -3,8 +3,8 @@
 </template>
 
 <script lang="ts" setup>
-defineOptions({ name: "test-button" });
-type ButtonProps = {
+defineOptions({ name: "WQButton" });
+export type ButtonProps = {
   type?: "primary" | "success" | "warning" | "danger" | "info" | "text";
 };
 const buttonProps = withDefaults(defineProps<ButtonProps>(), {

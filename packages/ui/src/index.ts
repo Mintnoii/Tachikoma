@@ -1,16 +1,16 @@
-import type { App } from 'vue'
-// import * as components from './components'
-// export * from './components'
-// import {Button} from './components'
+import type { App  } from 'vue'
 import 'uno.css'
 import Button from './button'
 
+// 单独导出组件
 export { Button}
+
+// 定义 install 函数的类型
 const install = (app: App) => {
-  // for (let n in components) {
-  //   app.use((components as any)[n])
-  // }
-    app.component('TestButton', Button);
+  app.component(Button.name, Button)
 }
 
 export default install
+  // for (let n in components) {
+  //   app.use((components as any)[n])
+  // }
