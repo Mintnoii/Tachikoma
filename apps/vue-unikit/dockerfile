@@ -1,0 +1,18 @@
+# build stage
+FROM node:18.16 as node-stage
+ARG env
+ARG CI_PROJECT_NAME
+ARG version
+WORKDIR /app
+
+COPY package-$CI_PROJECT_NAME.json ./package.json
+RUN yarn install --registry=https://npm.xmov.ai/
+RUN npm version ${version} --no-git-tag-version
+COPY . ./
+RUN yarn build:${env}
+
+#production stage
+FROM nginx:1.23.1
+COPY --from=node-stage /app/dist /usr/share/nginx/html/
+COPY default.conf /etc/nginx/conf.d/default.conf
+

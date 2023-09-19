@@ -1,0 +1,98 @@
+stages:
+  - build
+  # - deploy_dev
+  - deploy_test
+
+variables:
+  DOCKER_IMAGE_NAME: 'registry-vpc.cn-hangzhou.aliyuncs.com/xmov'
+   PROJECT_NAME: xxx
+
+# 构建镜像
+build_image:
+  stage: build
+
+  only:
+    # 开发构建
+    # 推荐使用 develop、feature/* 分支
+    # - develop
+    # - /^feature\/.*$/
+    # 测试构建
+    - /^release\/.*$/
+    - /^hotfix\/.*$/
+    # 生产构建
+    - master
+
+  # 打包通知
+  # before_script:
+  #   - |
+  #     node script/ci-notify/pack_start.mjs build_id$CI_JOB_ID
+
+  resource_group: $CI_PROJECT_NAME
+  script:
+    # 构建 Docker 镜像
+    - |
+      cp package.json package-$CI_PROJECT_NAME.json
+      build(){
+        docker build --build-arg env=$1 --build-arg CI_PROJECT_NAME=$CI_PROJECT_NAME -t $DOCKER_IMAGE_NAME/$CI_PROJECT_NAME:$CI_COMMIT_SHA .
+        docker push $DOCKER_IMAGE_NAME/$CI_PROJECT_NAME:$CI_COMMIT_SHA
+        docker tag $DOCKER_IMAGE_NAME/$CI_PROJECT_NAME:$CI_COMMIT_SHA $DOCKER_IMAGE_NAME/$CI_PROJECT_NAME:$2
+        docker push $DOCKER_IMAGE_NAME/$CI_PROJECT_NAME:$2
+      }
+      if [[ $CI_COMMIT_REF_NAME == release* ]] || [[ $CI_COMMIT_REF_NAME == hotfix* ]]
+      then
+        VERSION=$(echo $CI_COMMIT_REF_NAME | cut -d'/' -f2)
+        build staging test "$VERSION-Test"
+      elif [[ $CI_COMMIT_REF_NAME == "master" ]]
+      then
+        VERSION=0.0.0
+        build prod latest $VERSION
+      else
+        VERSION=999.9.9
+        build dev dev $VERSION
+      fi
+
+  # 打包通知
+  # after_script:
+  #   - |
+  #     if [[ $CI_JOB_STATUS == "success" ]]
+  #     then
+  #       if [[ $CI_COMMIT_REF_NAME == release* ]] || [[ $CI_COMMIT_REF_NAME == hotfix* ]]
+  #       then
+  #         node script/ci-notify/pack_success.mjs envtest
+  #       elif [[ $CI_COMMIT_REF_NAME == "master" ]]
+  #       then
+  #         node script/ci-notify/pack_success.mjs env
+  #       else
+  #         node script/ci-notify/pack_success.mjs envdev
+  #       fi
+  #     else
+  #       node script/ci-notify/pack_error.mjs build_id$CI_JOB_ID project_name$CI_PROJECT_NAME
+  #     fi
+  tags:
+    - core-huadong1-ali
+
+# 开发部署
+# deploy_dev_env:
+#   stage: deploy_dev
+#   variables:
+#     GIT_STRATEGY: none
+#   only:
+#     - develop
+#     - /^feature\/.*$/
+#   script:
+#     - update vhop-dev $PROJECT_NAME
+#   tags:
+#     - xmov-local-ut
+
+
+deploy_test_env:
+  stage: deploy_test
+  variables:
+    GIT_STRATEGY: none
+  only:
+    - /^release\/.*$/
+    - /^hotfix\/.*$/
+  script:
+    - update vhop-test $PROJECT_NAME
+  tags:
+    - xmov-local-ut
