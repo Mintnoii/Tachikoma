@@ -1,5 +1,5 @@
 import * as is from './is'
-
+import * as fs from './fs'
 /**
  * @param { Promise } promise
  * @param { Object } errorExt - Additional Information you can pass to the err object
@@ -25,5 +25,6 @@ export function to<T, U = Error> (
 
 export default {
   is,
+  fs,
   to
 }
