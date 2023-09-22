@@ -1,5 +1,9 @@
 {
   "compilerOptions": {
+    "declaration": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "baseUrl": ".",
     // 是否跳过声明文件的类型检查，这可以在编译期间以牺牲类型系统准确性为代价来节省时间，默认：false
     "skipLibCheck": true,
     // 是否跳过默认库声明文件的类型检查，默认：false
@@ -27,5 +31,6 @@
     // 为装饰器启用对发出类型元数据的实验性支持，默认：false
     // "emitDecoratorMetadata": false
     // https://tsup.egoist.dev/#troubleshooting
-  }
+  },
+  "include": ["**/*.ts"]
 }

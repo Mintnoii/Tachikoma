@@ -1,5 +1,5 @@
-import * as is from './is'
-import * as fs from './fs'
+import is from './src/is'
+import fs from './src/fs'
 /**
  * @param { Promise } promise
  * @param { Object } errorExt - Additional Information you can pass to the err object

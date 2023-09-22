@@ -3,15 +3,15 @@ import { defineConfig } from 'tsup'
 export default defineConfig([
   {
     // 如果是数组的形式，且只有一个，则打出来的是 dist/index.xx 的文件
-    // entry: ['utils/index.ts'],
+    entry: ['index.ts'],
     // 这样是直接打包到 dist 目录下 dist/utils.xx
     // entry: {
     //   'utils': 'utils/index.ts'
     // },
     // 这样是打包到对应的 dist 子目录下 dist/utils/utils.xx
-    entry: {
-      'utils/utils': 'utils/index.ts'
-    },
+    // entry: {
+    //   'utils/utils': 'utils/index.ts'
+    // },
     outDir: "dist",
     format: ['cjs', 'esm', 'iife'],
     dts: true, // 添加 .d.ts 文件

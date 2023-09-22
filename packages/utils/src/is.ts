@@ -13,7 +13,7 @@ const hasOwn = <T extends object, K extends keyof T>(val: T, key: K): key is K =
 export const typeOf = function(obj: unknown) {
   return Object.prototype.toString.call(obj).slice(8, -1).toLowerCase()
 }
-export {
+export default {
   isArray,
   isMap,
   isSet,
