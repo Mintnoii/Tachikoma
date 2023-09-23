@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsup --watch",
     "build": "tsup",
+    "build-utils": "ts-node scripts/build/index.ts",
     "build-shared": "cd packages/shared && pnpm build",
     "preinstall": "npx only-allow pnpm",
     "changeset": "changeset",
@@ -20,6 +21,7 @@
     "@changesets/cli": "^2.26.2",
     "@types/node": "^20.4.7",
     "eslint": "^8.22.0",
+    "ts-node": "^10.9.2",
     "tsup": "^7.2.0",
     "typescript": "^5.1.6"
   },

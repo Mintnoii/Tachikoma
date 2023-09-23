@@ -15,6 +15,4 @@ module.exports = {
     withDefaults: true
   },
   parser: '@typescript-eslint/parser',
-  overrides: [
-  ],
 }
