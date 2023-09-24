@@ -37,6 +37,8 @@ interface Task {
   dependencies: Set<Task>;
   // 依赖当前任务的任务，即当前任务的上游任务，当前任务完成后，需要更新其上游任务的 dependenciesSet（从其内移除当前任务）
   dependents: Set<Task>;
+  // 关联路径长度
+  criticalPathLength?: number;
   // 具体任务执行函数
   fn: () => Promise<void>;
 }
@@ -73,7 +75,6 @@ function run(projects: Project[], actionName: string, limit: number) {
 
     return dependencyTaskNames;
   }
-  debugger
   projects.forEach((project) => {
     // 1. 获取当前项目对应的任务
     const task = tasks.get(getTaskName(project, actionName))!;
@@ -91,9 +92,13 @@ function run(projects: Project[], actionName: string, limit: number) {
   });
 
    const taskQueue: Task[] = [];
-  for (const [, task] of tasks) {
+   for (const [, task] of tasks) {
+    // 计算关键路径长度
+    task.criticalPathLength = calculateCriticalPaths(task);
     taskQueue.push(task);
   }
+  // 基于关键路径长度对任务进行降序排序，以便优先执行关键路径上的任务
+  taskQueue.sort((a, b) => b.criticalPathLength! - a.criticalPathLength!);
   runTasks(taskQueue, limit);
 }
 
@@ -151,4 +156,25 @@ async function runTasks(taskQueue: Task[], limit: number) {
   start();
 }
 
+// 计算关键路径长度
+function calculateCriticalPaths(task: Task): number {
+  // 重复走到某一个任务了 直接返回值
+  if (task.criticalPathLength !== undefined) {
+    return task.criticalPathLength;
+  }
+
+  // 如果没有 dependents, 说明我们是 "root"，即 app 此类不被任何其他项依赖的 project
+  if (task.dependents.size === 0) {
+    task.criticalPathLength = 0;
+    return task.criticalPathLength;
+  }
+
+  // 递归向上取最大值 每次 +1
+  const depsLengths: number[] = [];
+  task.dependents.forEach((dep) =>
+    depsLengths.push(calculateCriticalPaths(dep))
+  );
+  task.criticalPathLength = Math.max(...depsLengths) + 1;
+  return task.criticalPathLength;
+}
 run(projects, "build", 12);
