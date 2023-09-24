@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsup --watch",
     "build": "tsup",
-    "build-utils": "ts-node scripts/build/index.ts",
+    "build-utils": "node --inspect=9999 --require ts-node/register  xxx/index.ts",
     "build-shared": "cd packages/shared && pnpm build",
     "preinstall": "npx only-allow pnpm",
     "changeset": "changeset",
