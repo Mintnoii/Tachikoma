@@ -10,7 +10,7 @@
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}/scripts/build/index.ts",
+      "program": "${workspaceFolder}/scripts/build-learn/index.ts",
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
       // "sourceMaps": true,
       // "cwd": "${workspaceRoot}",
