@@ -1,0 +1,29 @@
+{
+  "name": "@tachikomas/notion-kit",
+  "version": "0.0.1",
+  "description": "Mintnoii notion-kit",
+  "keywords": [],
+  "author": "Mintnoii",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "prepare": "pnpm run build",
+    "dev": "tsup --watch",
+    "build": "tsup",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "license": "ISC",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=14",
+    "pnpm": ">=7.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.2.14",
+    "remeda": "^1.33.0"
+  }
+}
