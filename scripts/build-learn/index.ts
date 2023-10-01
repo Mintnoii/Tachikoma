@@ -1,5 +1,5 @@
 import {fakeBuild, buildRelations, initTaskQueue, initTasks,runTasks} from './utils'
-import {Project} from './index.d'
+import {Project} from './types'
 // Monorepo 中注册的所有项目
 const projects: Project[] = [
   "@monorepo/a",

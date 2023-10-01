@@ -1,5 +1,5 @@
 import { consumers } from 'stream';
-import { Project, Task } from './index.d'
+import { Project, Task } from './types'
 
 export const fakeBuild = async (s: number): Promise<void> => new Promise((r) => setTimeout(r, s));
 // 用于在异步代码中占位，或者在需要传递异步函数但实际上不需要执行异步操作的情况下使用

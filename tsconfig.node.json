@@ -1,7 +1,6 @@
-// tsconfig.node.json
 {
   // 继承基础配置
-  "extends": "./tsconfig.base.json",
+  "extends": "./tsconfig.json",
   "compilerOptions": {
     // 该 ts project 将被视作一个部分，通过项目引用(Project References)功能集成到一个 tsconfig.json 中
     "composite": true,

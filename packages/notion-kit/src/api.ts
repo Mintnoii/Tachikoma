@@ -10,7 +10,7 @@ interface NotionKitOptions {
  * @param NOTION_TOKEN Notion Token
  * @returns 包含 Notion 客户端实例和封装的方法的对象
  */
-class NotionKit {
+export default class NotionKit {
   notionClient: Client;
   constructor(options: NotionKitOptions) {
     this.notionClient = new Client({ auth: options.token });
@@ -73,5 +73,3 @@ class NotionKit {
   // }
 
 }
-
-export default NotionKit;
