@@ -1,4 +1,50 @@
-import { PageObjectResponse, RichTextItemResponse, BlockObjectResponse, Heading1BlockObjectResponse, Heading2BlockObjectResponse, Heading3BlockObjectResponse, TextRichTextItemResponse, StatusPropertyItemObjectResponse } from '@notionhq/client/build/src/api-endpoints'
+import { PageObjectResponse, RichTextItemResponse, BlockObjectResponse, Heading1BlockObjectResponse, Heading2BlockObjectResponse, Heading3BlockObjectResponse,CalloutBlockObjectResponse, ToDoBlockObjectResponse, TextRichTextItemResponse, StatusPropertyItemObjectResponse, ChildPageBlockObjectResponse,ImageBlockObjectResponse,CodeBlockObjectResponse,BookmarkBlockObjectResponse,LinkPreviewBlockObjectResponse } from '@notionhq/client/build/src/api-endpoints'
+
+// 从 BlockObjectResponse 中提取 type 属性值的映射类型
+type AllBlockTypes = BlockObjectResponse['type'];
+
+export type NKBlockResponse = BlockObjectResponse
+export type NKToDoBlockResponse = ToDoBlockObjectResponse
+export type NKCalloutBlockResponse = CalloutBlockObjectResponse
+export type NKChildPageBlockResponse = ChildPageBlockObjectResponse
+export type NKImageBlockResponse = ImageBlockObjectResponse
+export type NKCodeBlockResponse = CodeBlockObjectResponse
+export type NKBookmarkBlockResponse = BookmarkBlockObjectResponse
+export type NKLinkPreviewBlockResponse = LinkPreviewBlockObjectResponse
+export interface NBRichText extends TextRichTextItemResponse{
+  // type: string
+  content: string
+  link: string
+}
+
+export interface NKBasicData {
+  id: string
+  type: AllBlockTypes
+  has_children: boolean
+  rich_text: NBRichText[]
+}
+
+export interface NKBlock extends NKBasicData{
+  children?: NKBlock[]
+  // NKToDoBlockResponse 块类型的 checked 属性
+  checked?: boolean
+  // todo 优化 NKCalloutBlockResponse 下的icon
+  icon?: any
+  // NKChildPageBlockResponse 下的 title
+  title?:string
+  image?:NKImageBlockResponse['image']
+  // todo 优化
+  // caption?:any
+  language?:NKCodeBlockResponse['code']['language']
+  url?:string
+}
+
+
+// ---------------------------------------------------
+
+
+
+
 
 export interface IPageObject extends PageObjectResponse { }
 

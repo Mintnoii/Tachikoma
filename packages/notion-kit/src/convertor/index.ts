@@ -1,16 +1,65 @@
 import * as R from 'remeda'
-import { ChildPageBlockObjectResponse, TextRichTextItemResponse, ToDoBlockObjectResponse, CalloutBlockObjectResponse, ImageBlockObjectResponse, CodeBlockObjectResponse, BookmarkBlockObjectResponse, LinkPreviewBlockObjectResponse, PageObjectResponse,BlockObjectResponse } from '@notionhq/client/build/src/api-endpoints'
-// import { IRichTextItem, ITextRichText, IBlog, IPageObject, IStatus, IStatusName, IProject, IBlockObject, IBlockObjectResp,IHeadingBlock } from '../types'
+import { NKBlockResponse, NKBlock,NKToDoBlockResponse, NKCalloutBlockResponse, NKChildPageBlockResponse, NKImageBlockResponse, NKCodeBlockResponse, NKBookmarkBlockResponse, NKLinkPreviewBlockResponse, IBlockObject, IBlockObjectResp,IHeadingBlock } from '../types'
 import {getBasicData} from './common'
 
-export const formatContent = (block: BlockObjectResponse) => {
+export const formatContent = (block: NKBlockResponse):NKBlock => {
+  const defaultBlock = getBasicData(block)
   switch (block.type) {
     case 'heading_1':
     case 'heading_2':
     case 'heading_3':
-      return getBasicData(block)
+      // return getBasicData(block)
+    case 'bulleted_list_item':
+    case 'numbered_list_item':
+      // return getBasicData(block)
+    case 'column_list':
+    case 'column':
+      // return getBasicData(block)
+    case 'paragraph':
+    case 'quote':
+    case 'toggle':
+      // return getBasicData(block)
+      return defaultBlock
+    case 'to_do':
+      return {
+        ...defaultBlock,
+        checked: (block as NKToDoBlockResponse).to_do.checked
+      }
+     case 'callout':
+      return {
+        ...defaultBlock,
+        icon: (block as NKCalloutBlockResponse).callout.icon
+      }
+    case 'child_page':
+      return {
+        ...defaultBlock,
+        title: (block as NKChildPageBlockResponse).child_page.title
+      }
+    case 'image':
+      return {
+        ...defaultBlock,
+        image: (block as NKImageBlockResponse).image,
+        // todo 优化
+        // caption: (block as NKImageBlockResponse).image.caption
+      }
+    case 'code':
+      return {
+        ...defaultBlock,
+        language: (block as NKCodeBlockResponse).code.language
+      }
+    case 'bookmark':
+      return {
+        ...defaultBlock,
+        // caption: (block as NKBookmarkBlockResponse).bookmark.caption,
+        url: (block as NKBookmarkBlockResponse).bookmark.url,
+      }
+    case 'link_preview':
+      return {
+        ...defaultBlock,
+        url: (block as NKLinkPreviewBlockResponse).link_preview.url,
+      }
     default:
-      return block
+      return defaultBlock as NKBlock
   }
 }
 
@@ -66,66 +115,3 @@ export const formatContent = (block: BlockObjectResponse) => {
 //   return { rich_text }
 // }
 // https://developers.notion.com/reference/block
-// export const formatContent = (block: BlockObjectResponse) => {
-//   const { id, type, has_children, children } = block
-//   const basicData = { id, type, has_children, children }
-//   switch (type) {
-//     case 'heading_1':
-//     case 'heading_2':
-//     case 'heading_3':
-//       return getBasicData(block as BlockObjectResponse)
-//     case 'bulleted_list_item':
-//     case 'numbered_list_item':
-//     case 'paragraph':
-//     case 'quote':
-//     case 'toggle':
-//     case 'column_list':
-//     case 'column':
-//       return {
-//         ...basicData,
-//         ...calcRichText(block)
-//       } as IBlockObject
-//     case 'to_do':
-//       return {
-//         ...basicData,
-//         ...calcRichText(block),
-//         checked: (block as ToDoBlockObjectResponse).to_do.checked
-//       } as IBlockObject
-//     case 'callout':
-//       return {
-//         ...basicData,
-//         ...calcRichText(block),
-//         icon: (block as CalloutBlockObjectResponse).callout.icon
-//       } as IBlockObject
-//     case 'child_page':
-//       return {
-//         ...basicData,
-//         title: (block as ChildPageBlockObjectResponse).child_page.title
-//       } as IBlockObject
-//     case 'image':
-//       return {
-//         ...basicData,
-//         image: (block as ImageBlockObjectResponse).image,
-//         caption: (block as ImageBlockObjectResponse).image.caption
-//       } as IBlockObject
-//     case 'code':
-//       return {
-//         ...basicData,
-//         ...calcRichText(block),
-//         language: (block as CodeBlockObjectResponse).code.language
-//       } as IBlockObject
-//     case 'bookmark':
-//       return {
-//         ...basicData,
-//         caption: (block as BookmarkBlockObjectResponse).bookmark.caption,
-//         url: (block as BookmarkBlockObjectResponse).bookmark.url,
-//       }
-//     case 'link_preview':
-//       return {
-//         ...basicData,
-//         url: (block as LinkPreviewBlockObjectResponse).link_preview.url,
-//       }
-//     default:
-//       return block as IBlockObject
-//   }
-// }
