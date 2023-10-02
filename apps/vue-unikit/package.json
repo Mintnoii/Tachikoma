@@ -16,7 +16,6 @@
 		"lint": "eslint src",
 		"preview": "vite preview",
 		"serve": "vite preview--host",
-		"prepare": "husky install",
 		"commit": "git cz"
 	},
 	"devDependencies": {

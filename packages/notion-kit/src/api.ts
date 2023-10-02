@@ -1,19 +1,18 @@
 import { Client } from '@notionhq/client';
 import { QueryDatabaseParameters, BlockObjectResponse, GetPageResponse } from '@notionhq/client/build/src/api-endpoints'
 
-
 interface NotionKitOptions {
-  token: string;
+  token?: string;
 }
 /**
  * 初始化 Notion 客户端和封装的方法
- * @param NOTION_TOKEN Notion Token
- * @returns 包含 Notion 客户端实例和封装的方法的对象
+ * @param options 初始化参数 { token?: string }
+ * @returns 包含 Notion 客户端实例和封装方法的对象
  */
 export default class NotionKit {
-  notionClient: Client;
+  notion: Client;
   constructor(options: NotionKitOptions) {
-    this.notionClient = new Client({ auth: options.token });
+    this.notion = new Client({ auth: options.token });
     // todo 其他初始化逻辑
   }
 
@@ -24,7 +23,7 @@ export default class NotionKit {
    * @see https://developers.notion.com/reference/post-database-query
    */
   queryDatabase = async (params: QueryDatabaseParameters) => {
-    return this.notionClient.databases.query(params);
+    return this.notion.databases.query(params);
   }
 
   /**
@@ -34,8 +33,8 @@ export default class NotionKit {
    * @description 返回页面属性，而不是页面内容。若要提取页面内容，请使用 retrieveBlockChildren
    * @see https://developers.notion.com/reference/retrieve-a-page
    */
-  retrievePage = async (page_id: string) =>{
-    return this.notionClient.pages.retrieve({ page_id });
+  retrievePage = async (page_id: string) => {
+    return this.notion.pages.retrieve({ page_id });
   }
 
   /**
@@ -46,9 +45,9 @@ export default class NotionKit {
    * @description 使用指定的 ID 返回块中包含的子块对象的分页数组 为了接收块的完整表示，可能需要递归检索子块的块子项
    * @see https://developers.notion.com/reference/retrieve-block-children
    */
-  retrieveBlockChildren = async (block_id: string, optipons?:{start_cursor?: string, page_size?: number}) => {
+  retrieveBlockChildren = async (block_id: string, optipons?: { start_cursor?: string, page_size?: number }) => {
     const { start_cursor, page_size = 50 } = optipons || {}
-    const response = await this.notionClient.blocks.children.list({
+    const response = await this.notion.blocks.children.list({
       block_id,
       start_cursor,
       page_size,
@@ -58,7 +57,7 @@ export default class NotionKit {
 
   // todo 查询
   // async search() {
-  //   const response = await this.notionClient.search({
+  //   const response = await this.notion.search({
   //   query: '',
   //   filter: {
   //     value: 'database',

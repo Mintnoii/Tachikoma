@@ -1,6 +1,6 @@
 # Notion-Kit
 
-Notion Kit is a TypeScript library that simplifies interactions with the Notion API. It provides a convenient way to query databases, retrieve pages, and handle various types of Notion blocks.
+Notion-Kit is a TypeScript library that simplifies interactions with the Notion API. It provides a convenient way to query databases, retrieve pages, and handle various types of Notion blocks.
 
 ### Installation
 

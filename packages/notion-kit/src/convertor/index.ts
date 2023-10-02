@@ -1,73 +1,67 @@
-import * as R from 'remeda'
-import { NKBlockResponse, NKBlock,NKToDoBlockResponse, NKCalloutBlockResponse, NKChildPageBlockResponse, NKImageBlockResponse, NKCodeBlockResponse, NKBookmarkBlockResponse, NKLinkPreviewBlockResponse, IBlockObject, IBlockObjectResp,IHeadingBlock } from '../types'
-import {getBasicData} from './common'
+// import * as R from 'remeda'
+import { getBasicBlock } from './common'
+import { IBlockObject, IBlock, IToDoBlockObject, ICalloutBlockObject, IChildPageBlockObject, IImageBlockObject, ICodeBlockObject, IBookmarkBlockObject, ILinkPreviewBlockObject } from '../types'
 
-export const formatContent = (block: NKBlockResponse):NKBlock => {
-  const defaultBlock = getBasicData(block)
+export const convertBlock = (block: IBlockObject): IBlock => {
+  const defaultBlock = getBasicBlock(block)
   switch (block.type) {
     case 'heading_1':
     case 'heading_2':
     case 'heading_3':
-      // return getBasicData(block)
+    // return getBasicBlock(block)
     case 'bulleted_list_item':
     case 'numbered_list_item':
-      // return getBasicData(block)
+    // return getBasicBlock(block)
     case 'column_list':
     case 'column':
-      // return getBasicData(block)
+    // return getBasicBlock(block)
     case 'paragraph':
     case 'quote':
     case 'toggle':
-      // return getBasicData(block)
+      // return getBasicBlock(block)
       return defaultBlock
     case 'to_do':
       return {
         ...defaultBlock,
-        checked: (block as NKToDoBlockResponse).to_do.checked
+        checked: (block as IToDoBlockObject).to_do.checked
       }
-     case 'callout':
+    case 'callout':
       return {
         ...defaultBlock,
-        icon: (block as NKCalloutBlockResponse).callout.icon
+        icon: (block as ICalloutBlockObject).callout.icon
       }
     case 'child_page':
       return {
         ...defaultBlock,
-        title: (block as NKChildPageBlockResponse).child_page.title
+        title: (block as IChildPageBlockObject).child_page.title
       }
     case 'image':
       return {
         ...defaultBlock,
-        image: (block as NKImageBlockResponse).image,
+        image: (block as IImageBlockObject).image,
         // todo 优化
-        // caption: (block as NKImageBlockResponse).image.caption
+        // caption: (block as IImageBlockObject).image.caption
       }
     case 'code':
       return {
         ...defaultBlock,
-        language: (block as NKCodeBlockResponse).code.language
+        language: (block as ICodeBlockObject).code.language
       }
     case 'bookmark':
       return {
         ...defaultBlock,
-        // caption: (block as NKBookmarkBlockResponse).bookmark.caption,
-        url: (block as NKBookmarkBlockResponse).bookmark.url,
+        // caption: (block as IBookmarkBlockObject).bookmark.caption,
+        url: (block as IBookmarkBlockObject).bookmark.url,
       }
     case 'link_preview':
       return {
         ...defaultBlock,
-        url: (block as NKLinkPreviewBlockResponse).link_preview.url,
+        url: (block as ILinkPreviewBlockObject).link_preview.url,
       }
     default:
-      return defaultBlock as NKBlock
+      return defaultBlock as IBlock
   }
 }
-
-// const formatHeading = (block:IHeadingBlock) => {
-//   return {
-//       ...getBasicData(block as BlockObjectResponse),
-//     }
-// }
 
 // const formatTextRichText = (text_rich_text: ITextRichText[]) => {
 //   return text_rich_text.map(item => (item.text.content)).join('')
@@ -101,17 +95,3 @@ export const formatContent = (block: NKBlockResponse):NKBlock => {
 //     tags
 //   }
 // }
-
-// const calcRichText = (block: any) => {
-//   const rich_text_items = R.pathOr(block, [block.type, 'rich_text'], []) as TextRichTextItemResponse[]
-//   const rich_text = rich_text_items.map(item => {
-//     return {
-//       type: item.type,
-//       content: item.text?.content || '',
-//       link: item.text?.link?.url || '',
-//       annotations: item.annotations
-//     }
-//   })
-//   return { rich_text }
-// }
-// https://developers.notion.com/reference/block
