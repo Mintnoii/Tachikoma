@@ -1,24 +1,24 @@
 // import * as R from 'remeda'
-import { getBasicBlock } from './common'
+import { getDefaultBlock } from './common'
 import { IBlockObject, IBlock, IToDoBlockObject, ICalloutBlockObject, IChildPageBlockObject, IImageBlockObject, ICodeBlockObject, IBookmarkBlockObject, ILinkPreviewBlockObject } from '../types'
 
 export const convertBlock = (block: IBlockObject): IBlock => {
-  const defaultBlock = getBasicBlock(block)
+  const defaultBlock = getDefaultBlock(block)
   switch (block.type) {
     case 'heading_1':
     case 'heading_2':
     case 'heading_3':
-    // return getBasicBlock(block)
+    // return getDefaultBlock(block)
     case 'bulleted_list_item':
     case 'numbered_list_item':
-    // return getBasicBlock(block)
+    // return getDefaultBlock(block)
     case 'column_list':
     case 'column':
-    // return getBasicBlock(block)
+    // return getDefaultBlock(block)
     case 'paragraph':
     case 'quote':
     case 'toggle':
-      // return getBasicBlock(block)
+      // return getDefaultBlock(block)
       return defaultBlock
     case 'to_do':
       return {

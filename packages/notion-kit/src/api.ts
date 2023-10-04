@@ -1,5 +1,5 @@
 import { Client } from '@notionhq/client';
-import { QueryDatabaseParameters, BlockObjectResponse, GetPageResponse } from '@notionhq/client/build/src/api-endpoints'
+import { QueryDatabaseParameters } from './types'
 
 interface NotionKitOptions {
   token?: string;

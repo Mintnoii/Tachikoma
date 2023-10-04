@@ -76,20 +76,6 @@ const blockObject = {
 
 const formattedContent = formatContent(blockObject);
 ```
-### Additional Types
-
-The library also exports various types to help you work with Notion objects:
-
-- `IBlock, IBlockObject, IBlockObjectResp`: Types related to Notion blocks.
-- `IBlog, IDataItem, IProject`: Types for different data items.
-- `IHeading, IHeadingBlock`: Types for headings.
-- `IList, IListItem, IListBlock`: Types for lists.
-- `IPageObject`: Type for Notion pages.
-- `IRichTextItem, ITextRichText`: Types for rich text content.
-- `IStatus, IStatusName`: Types for status properties.
-- `ITag`: Type for Notion tags.
-
-Feel free to explore these types and use them as needed in your application.
 
 ### License
 
