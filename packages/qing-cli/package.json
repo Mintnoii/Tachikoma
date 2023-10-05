@@ -1,0 +1,33 @@
+{
+  "name": "@tachikomas/qing-cli",
+  "version": "0.0.1",
+  "author": "Mintnoii",
+  "description": "Mintnoii qing-cli",
+  "keywords": [
+    "Mintnoii",
+    "qing-cli"
+  ],
+  "type": "module",
+  "bin": {
+    "qing": "./dist/bin.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "dev": "tsup src/index.ts src/bin.ts --legacy-output --watch",
+    "build": "tsup src/index.ts src/bin.ts --legacy-output",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "license": "ISC",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=14",
+    "pnpm": ">=7.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "zx": "^7.2.3"
+  }
+}
