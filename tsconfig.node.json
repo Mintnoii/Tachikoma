@@ -7,10 +7,14 @@
     "lib": ["ESNext"],
     "types": ["node"],
     // 脚本有时会以 js 编写，因此允许 js
-    "allowJs": true
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true, // 用于允许从没有默认导出的模块中默认导入
+
   },
   "include": [
-    "packages/utils",
+    "packages/**/*.ts",
+    "packages/**/*.json",
     "scripts"
   ],
   "exclude": [

@@ -2,11 +2,11 @@
 import { program } from "commander";
 // import { init } from "./init.js";
 // import {creator} from "./creator.js";
-// import { showMintCli, errorText } from "./utils/print.js";
+// import { QingCLI, errorText } from "./utils/print.js";
 // import { listTemplate, addCustomTmpl, rmCustomTmpl } from "./utils/tmpls.js";
 // import {loadPackageJson} from "./utils/load.js";
 
-// program.addHelpText("before", showMintCli());
+// program.addHelpText("before", QingCLI());
 // program.configureOutput({
 //   // writeOut: (str) => process.stdout.write(`[OUT] ${str}`),
 //   // writeErr: (str) => process.stdout.write(`[ERR] ${str}`),
