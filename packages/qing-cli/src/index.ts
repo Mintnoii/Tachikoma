@@ -1,12 +1,28 @@
 #! /usr/bin/env node
-import { program } from "commander";
+import { program  } from "commander";
+// import { path, fs, } from "zx";
 // import { init } from "./init.js";
 // import {creator} from "./creator.js";
-// import { QingCLI, errorText } from "./utils/print.js";
+import { QingCLI, loadPackageJson } from "./utils";
+import pkg from '../package.json'
 // import { listTemplate, addCustomTmpl, rmCustomTmpl } from "./utils/tmpls.js";
 // import {loadPackageJson} from "./utils/load.js";
-
-// program.addHelpText("before", QingCLI());
+// 创建程序实例并设置版本号
+// const program = new Command()
+program.version(pkg.version, "-v, --version", "查看当前版本")
+// program.helpOption("-h, --help", "查看帮助")
+program.helpOption(false)
+program.addHelpCommand(false)
+program.addHelpText("before", QingCLI());
+program
+  .name("qing")
+  // .option("-h, --help", "显示命令帮助") // 暂时不显示帮助命令
+  // .option('-e, --exclude <globPatterns...>', '排除某些文件进行扫描')
+  // .option(
+  //   '--allow-dirty',
+  //   '默认屏蔽以下目录（node_modules，.git等），可以设置允许'
+  // )
+// console.log(path.resolve('package.json'),'====')
 // program.configureOutput({
 //   // writeOut: (str) => process.stdout.write(`[OUT] ${str}`),
 //   // writeErr: (str) => process.stdout.write(`[ERR] ${str}`),
@@ -14,10 +30,6 @@ import { program } from "commander";
 //   outputError: (str, write) => write(errorText(str)),
 // });
 
-// program
-//   .name("mint")
-// //   .version(loadPackageJson().version, "-v, --version", "查看当前版本")
-//   .option("-h, --help", "显示命令帮助");
 
 // program
 //   .command("init <project_name>")
@@ -50,5 +62,18 @@ import { program } from "commander";
 //   .option("-f, --force", "覆盖项目同名文件夹，强制初始化")
 //   .action((name, options) => creator(name, options));
 
-// 必须放到最后一行用于解析
+// program
+//   .command('hello [name]')
+//   .description('打招呼')
+//   .action((name, options) => {
+//     console.log('你好', name, options.exclude, options.allowDirty)
+//   })
+program
+  .command('test [command]')
+  // .alias('h')
+  // .description('查看帮助')
+  .action((name, options) => {
+    console.log('tips:', name, options.exclude, options.allowDirty)
+  })
+// 必须放到最后一行用于 解析命令行参数
 program.parse(process.argv);

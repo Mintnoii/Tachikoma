@@ -9,12 +9,12 @@
   ],
   "type": "module",
   "bin": {
-    "qing": "./dist/bin.js"
+    "qing": "./dist/index.js"
   },
   "main": "./dist/index.js",
   "scripts": {
-    "dev": "tsup src/index.ts src/bin.ts --format cjs,esm  --watch",
-    "build": "tsup src/index.ts src/bin.ts --format cjs,esm ",
+    "dev": "tsup src/index.ts --format cjs,esm  --watch",
+    "build": "tsup src/index.ts --format cjs,esm ",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "license": "ISC",
