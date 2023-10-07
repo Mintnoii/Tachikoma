@@ -4,8 +4,8 @@ import figlet from "figlet";
 // export const figletLog = (msg:string) => figlet.textSync(msg,{font:'big'})
 
 export const QingCLI = () => chalk.magenta.bold(
-    figlet.textSync("Q I N G - C L I", { font: "big" })
-  );
+  figlet.textSync("Q I N G - C L I", { font: "big" })
+);
 
 // chalk.magenta.bold(
 //     figlet.textSync("Q I N G - C L I", { font: "big" }) +
@@ -13,33 +13,19 @@ export const QingCLI = () => chalk.magenta.bold(
 //       "🌿 Qing-Cli 前端项目 CLI 工具" + "\n"
 //   );
 
-
-export const successText = (text: string) => chalk.green(text);
-export const errorText = (text: string) => chalk.red(text);
-export const warnText = (text: string) => chalk.yellow(text);
-export const linkText = (text: string) => chalk.cyan(text);
-export const noteText = (text: string) => chalk.gray(text);
-
-export const successLog = (msg: string) => {
-  echo(successText(msg));
+const logColorMap = {
+  success: 'green',
+  error: 'red',
+  warn: 'yellow',
+  link: 'cyan',
+  note: 'gray',
 };
 
-export const errorLog = (msg: string) => {
-  echo(errorText(msg));
-};
+export const chalkText = (text: string, type?: keyof typeof logColorMap) => {
+  if (type) {
+    return chalk[logColorMap[type]](text);
+  }
+  return chalk.gray(text);
+}
 
-export const warnLog = (msg: string) => {
-  echo(warnText(msg));
-};
-
-export const markLog = (msg: string) => {
-  echo(chalk.magenta(msg));
-};
-
-export const linkLog = (msg: string) => {
-  echo(chalk.cyan(msg));
-};
-
-export const noteLog = (msg: string) => {
-  echo(chalk.gray(msg));
-};
+export const chalkLog = (text: string, type?: keyof typeof logColorMap) => echo(chalkText(text, type));

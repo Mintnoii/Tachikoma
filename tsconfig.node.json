@@ -2,13 +2,12 @@
   // 继承基础配置
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    // 该 ts project 将被视作一个部分，通过项目引用(Project References)功能集成到一个 tsconfig.json 中
-    "composite": true,
+    "composite": true, // 是否开启项目编译
     "lib": ["ESNext"],
     "types": ["node"],
-    // 脚本有时会以 js 编写，因此允许 js
-    "allowJs": true,
-    "resolveJsonModule": true,
+    "allowJs": true, // 脚本有时会以 js 编写，因此允许 js
+    "esModuleInterop": true, // 通过导入内容创建命名空间，实现CommonJS和ES模块之间的互操作性
+    "resolveJsonModule": true, // 是否解析 JSON 模块
     "allowSyntheticDefaultImports": true, // 用于允许从没有默认导出的模块中默认导入
 
   },
@@ -18,7 +17,6 @@
     "scripts"
   ],
   "exclude": [
-    // 暂时先排除产物目录，packages/xxx/dist/x.config.js 或者 node_modules/pkg/x.config.js 不会被包含进来
     "**/dist",
     "**/node_modules"
   ]
