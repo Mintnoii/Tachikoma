@@ -1,19 +1,3 @@
-// copy from virtual-anchor
-export const download = async (args: { url: string; filename: string }): Promise<boolean> => {
-  try {
-    const response = await fetch(args.url)
-    if (!response.ok) {
-      throw new Error(`Download failed with status ${response.status}`)
-    }
-    const blob = await response.blob()
-    downloadBlob(args.filename, blob)
-    return true
-  } catch (error) {
-    console.error('Download error:', error)
-    return false
-  }
-}
-
 export const downloadBlob = (fileName: string, res: any) => {
   const urlObject = window.URL || window.webkitURL || window
   const aLink = document.createElementNS('http://www.w3.org/1999/xhtml', 'a')
@@ -41,6 +25,21 @@ export const convertFileToBlob = (file: File): Promise<Blob> => {
     }
     reader.readAsArrayBuffer(file)
   })
+}
+
+export const download = async (args: { url: string; filename: string }): Promise<boolean> => {
+  try {
+    const response = await fetch(args.url)
+    if (!response.ok) {
+      throw new Error(`Download failed with status ${response.status}`)
+    }
+    const blob = await response.blob()
+    downloadBlob(args.filename, blob)
+    return true
+  } catch (error) {
+    console.error('Download error:', error)
+    return false
+  }
 }
 
 export default {

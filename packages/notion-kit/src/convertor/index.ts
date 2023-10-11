@@ -8,13 +8,10 @@ export const convertBlock = (block: IBlockObject): IBlock => {
     case 'heading_1':
     case 'heading_2':
     case 'heading_3':
-    // return getDefaultBlock(block)
     case 'bulleted_list_item':
     case 'numbered_list_item':
-    // return getDefaultBlock(block)
     case 'column_list':
     case 'column':
-    // return getDefaultBlock(block)
     case 'paragraph':
     case 'quote':
     case 'toggle':

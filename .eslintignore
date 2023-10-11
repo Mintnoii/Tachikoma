@@ -1,0 +1,14 @@
+# .eslintignore
+node_modules
+.DS_Store
+dist
+*.local
+*.d.ts
+
+# ESLint 默认忽略对 . 开头文件的检查
+# 对于下列配置文件都需要用 ! 反向声明忽略
+!.eslintrc.js
+!.stylelintrc.js
+!.prettierrc.js
+!.lintstagedrc.js
+!.commitlintrc.js

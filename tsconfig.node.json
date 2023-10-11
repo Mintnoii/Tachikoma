@@ -1,6 +1,6 @@
 {
   // 继承基础配置
-  "extends": "./tsconfig.json",
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "composite": true, // 是否开启项目编译
     "lib": ["ESNext"],
@@ -9,12 +9,11 @@
     "esModuleInterop": true, // 通过导入内容创建命名空间，实现CommonJS和ES模块之间的互操作性
     "resolveJsonModule": true, // 是否解析 JSON 模块
     "allowSyntheticDefaultImports": true, // 用于允许从没有默认导出的模块中默认导入
-
   },
   "include": [
     "packages/**/*.ts",
     "packages/**/*.json",
-    "scripts"
+    "scripts",
   ],
   "exclude": [
     "**/dist",
