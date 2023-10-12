@@ -40,7 +40,7 @@ module.exports = defineConfig({
     // extraFileExtensions: ['.vue'],
 	},
 	// 添加想要的 Linting 规则，增强 ESlint 功能
-	// plugins: ["@typescript-eslint"],
+	plugins: [],
 
   // 控制已有规则的开启 / 关闭，也可以覆盖掉 extends 的配置，微调修改
   rules: {
@@ -75,7 +75,6 @@ module.exports = defineConfig({
     //   files: [
     //     '**/vite.config.*',
     //     '**/vitest.config.*',
-    //     '**/scripts/**',
     //   ],
     //   rules: {
     //     'import/no-relative-packages': 'off',

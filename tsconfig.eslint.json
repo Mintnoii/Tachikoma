@@ -1,5 +1,6 @@
-// tsconfig.eslint.json
-// eslint 检查专用，不要包含到 tsconfig.json 中
+// monorepo 项目，官方推荐使用 tsconfig.eslint.json
+// 用于 eslint 检查专用，不要包含到 tsconfig.json 中
+// https://typescript-eslint.io/linting/typed-linting/monorepos/
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
