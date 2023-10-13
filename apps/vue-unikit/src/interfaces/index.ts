@@ -1,7 +1,7 @@
-import DefaultApis from './apis'
+import DefaultApis from "./apis";
 
 export const AppInterfaces = () => ({
-  ...DefaultApis
-})
+  ...DefaultApis,
+});
 
-export default AppInterfaces
+export default AppInterfaces;

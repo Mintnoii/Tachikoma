@@ -1,21 +1,20 @@
 #! /usr/bin/env node
-import { program } from "commander";
+import { program } from 'commander'
 // import { path, fs, } from "zx";
 // import {creator} from "./creator.js";
-import { init } from "./command";
-import { QingCLI, chalkText } from "./utils";
+import { init } from './command'
+import { QingCLI, chalkText } from './utils'
 import pkg from '../package.json'
 // import { listTemplate, addCustomTmpl, rmCustomTmpl } from "./utils/tmpls.js";
 // import {loadPackageJson} from "./utils/load.js";
 // 创建程序实例并设置版本号
 // const program = new Command()
-program.version(pkg.version, "-v, --version", "查看当前版本")
+program.version(pkg.version, '-v, --version', '查看当前版本')
 // program.helpOption("-h, --help", "查看帮助")
 program.helpOption(false)
 program.addHelpCommand(false)
-program.addHelpText("before", QingCLI());
-program
-  .name("qing")
+program.addHelpText('before', QingCLI())
+program.name('qing')
 // .option("-h, --help", "显示命令帮助") // 暂时不显示帮助命令
 // .option('-e, --exclude <globPatterns...>', '排除某些文件进行扫描')
 // .option(
@@ -30,17 +29,16 @@ program
 program.configureOutput({
   // writeOut: (str) => process.stdout.write(`[OUT] ${str}`),
   // writeErr: (str) => process.stdout.write(`[ERR] ${str}`),
-  outputError: (str, write) => write(chalkText(str, "error")),
-});
-
+  outputError: (str, write) => write(chalkText(str, 'error')),
+})
 
 program
-  .command("init")
-  .alias("i")
-  .description("🚀 使用模板初始化项目")
-  .argument("<project_name>", "项目名称(必填)")
-  .option("-f, --force", "覆盖项目同名文件夹，强制初始化")
-  .action((project_name, options) => init(project_name, options));
+  .command('init')
+  .alias('i')
+  .description('🚀 使用模板初始化项目')
+  .argument('<project_name>', '项目名称(必填)')
+  .option('-f, --force', '覆盖项目同名文件夹，强制初始化')
+  .action((project_name, options) => init(project_name, options))
 
 // program
 //   .command("list")
@@ -73,4 +71,4 @@ program
 //     console.log('你好', name, options.exclude, options.allowDirty)
 //   })
 // 必须放到最后一行用于 解析命令行参数
-program.parse(process.argv);
+program.parse(process.argv)

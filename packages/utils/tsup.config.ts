@@ -12,7 +12,7 @@ export default defineConfig([
     // entry: {
     //   'utils/utils': 'utils/index.ts'
     // },
-    outDir: "dist",
+    outDir: 'dist',
     format: ['cjs', 'esm', 'iife'],
     dts: true, // 添加 .d.ts 文件
     minify: true, // 压缩

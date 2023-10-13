@@ -2,7 +2,7 @@ module.exports = {
   env: {
     browser: true,
     es2021: true,
-    node: true
+    node: true,
   },
   globals: {
     defineEmits: true,
@@ -12,7 +12,7 @@ module.exports = {
     window: true,
     defineProps: true,
     defineExpose: true,
-    withDefaults: true
+    withDefaults: true,
   },
   parser: '@typescript-eslint/parser',
 }

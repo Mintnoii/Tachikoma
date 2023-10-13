@@ -1,24 +1,24 @@
-import { AxiosInstance, InternalAxiosRequestConfig, AxiosError, AxiosResponse } from 'axios'
+import { AxiosInstance, InternalAxiosRequestConfig, AxiosError, AxiosResponse } from "axios";
 
 export interface IXmovRequest {
-  (url: string, options?: AxiosRequestConfig): Promise<IResponse>
+  (url: string, options?: AxiosRequestConfig): Promise<IResponse>;
 }
 
 export interface RequestHandlerFunc {
-  (requestConfig: InternalAxiosRequestConfig): InternalAxiosRequestConfig
+  (requestConfig: InternalAxiosRequestConfig): InternalAxiosRequestConfig;
 }
 
 export interface ResponseHandlerFunc {
-  (response: AxiosResponse): Promise<any>
+  (response: AxiosResponse): Promise<any>;
 }
 
 export interface ErrorHandlerFunc {
-  (error: AxiosError): Promise<never>
+  (error: AxiosError): Promise<never>;
 }
 
 export interface IAxiosHandlers {
-  responseHandler: ResponseHandlerFunc
-  requestHandler?: RequestHandlerFunc
-  requestErrorHandler?: ErrorHandlerFunc
-  responseErrorHandler?: ErrorHandlerFunc
+  responseHandler: ResponseHandlerFunc;
+  requestHandler?: RequestHandlerFunc;
+  requestErrorHandler?: ErrorHandlerFunc;
+  responseErrorHandler?: ErrorHandlerFunc;
 }

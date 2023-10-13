@@ -1,4 +1,15 @@
-import { PageObjectResponse, BlockObjectResponse, CalloutBlockObjectResponse, ToDoBlockObjectResponse, TextRichTextItemResponse, ChildPageBlockObjectResponse, ImageBlockObjectResponse, CodeBlockObjectResponse, BookmarkBlockObjectResponse, LinkPreviewBlockObjectResponse } from '@notionhq/client/build/src/api-endpoints'
+import {
+  PageObjectResponse,
+  BlockObjectResponse,
+  CalloutBlockObjectResponse,
+  ToDoBlockObjectResponse,
+  TextRichTextItemResponse,
+  ChildPageBlockObjectResponse,
+  ImageBlockObjectResponse,
+  CodeBlockObjectResponse,
+  BookmarkBlockObjectResponse,
+  LinkPreviewBlockObjectResponse,
+} from '@notionhq/client/build/src/api-endpoints'
 // 导出 notion api 的类型
 // https://github.com/microsoft/TypeScript/issues/37238
 export type * from '@notionhq/client/build/src/api-endpoints'

@@ -13,12 +13,11 @@ Notion-Kit is a TypeScript library that simplifies interactions with the Notion 
 To get started, initialize the Notion Kit by providing your Notion token:
 
 ```typescript
+import { NotionKit } from '@tachikomas/notion-kit'
 
-import { NotionKit } from '@tachikomas/notion-kit';
-
-const {notion} = new NotionKit({
+const { notion } = new NotionKit({
   token: 'your-notion-token',
-});
+})
 ```
 
 **Querying Databases**
@@ -32,9 +31,9 @@ const database = await notion.queryDatabase({
     property: 'Status',
     status: {
       equals: 'Blog',
-    }
-  }
-});
+    },
+  },
+})
 ```
 
 **Retrieving Pages**
@@ -42,9 +41,9 @@ const database = await notion.queryDatabase({
 To retrieve a page, use the `retrievePage ` method:
 
 ```typescript
-const page = await notion.retrievePage ({
+const page = await notion.retrievePage({
   page_id: 'your-page-id',
-});
+})
 ```
 
 **Retrieve Block Children**
@@ -69,12 +68,13 @@ export const getAllBlocks = async (page_id: string, start_cursor?: string | null
 ### Formatting Content Blocks
 
 Use the formatContent method to format different types of content blocks:
+
 ```typescript
 const blockObject = {
   // specify
-};
+}
 
-const formattedContent = formatContent(blockObject);
+const formattedContent = formatContent(blockObject)
 ```
 
 ### License

@@ -11,8 +11,8 @@
 import { checkAndClearDir } from '../utils'
 // 初始化项目
 export const init = async (project_name: string, options: any) => {
-  console.log(project_name, options);
-  const cleared = await checkAndClearDir(project_name, options.force);
+  console.log(project_name, options)
+  const cleared = await checkAndClearDir(project_name, options.force)
   if (cleared) {
     // 创建交互
     try {
@@ -22,7 +22,7 @@ export const init = async (project_name: string, options: any) => {
       // // await writePackageJson(project_name, answers,privateNpmArr)
       // await writePackageJson(project_name, answers,[])
       // startProject(project_name);
-      console.log('init');
+      console.log('init')
     } catch (err) {
       // exit(errorText(`❌ 初始化失败 ${err}`));
     }
@@ -30,4 +30,4 @@ export const init = async (project_name: string, options: any) => {
     // 已有同名文件夹 后续也可在此处添加直接初始化的逻辑
     // exit(`👋 终止初始化项目 see u ~`);
   }
-};
+}

@@ -23,7 +23,7 @@
     "moduleResolution": "node",
     // 通过导入内容创建命名空间，实现CommonJS和ES模块之间的互操作性
     // 开启改选项时，也自动开启- allowSyntheticDefaultImports 选项
-    "esModuleInterop": true,
+    "esModuleInterop": true
     // 是否允许从没有默认导出的模块中默认导入，默认：false
     // "allowSyntheticDefaultImports": true,
     // 是否启用对装饰器的实验性支持，装饰器是一种语言特性，还没有完全被 JavaScript 规范批准，默认：false

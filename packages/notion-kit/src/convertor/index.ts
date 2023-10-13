@@ -1,6 +1,16 @@
 // import * as R from 'remeda'
 import { getDefaultBlock } from './common'
-import { IBlockObject, IBlock, IToDoBlockObject, ICalloutBlockObject, IChildPageBlockObject, IImageBlockObject, ICodeBlockObject, IBookmarkBlockObject, ILinkPreviewBlockObject } from '../types'
+import {
+  IBlockObject,
+  IBlock,
+  IToDoBlockObject,
+  ICalloutBlockObject,
+  IChildPageBlockObject,
+  IImageBlockObject,
+  ICodeBlockObject,
+  IBookmarkBlockObject,
+  ILinkPreviewBlockObject,
+} from '../types'
 
 export const convertBlock = (block: IBlockObject): IBlock => {
   const defaultBlock = getDefaultBlock(block)
@@ -20,17 +30,17 @@ export const convertBlock = (block: IBlockObject): IBlock => {
     case 'to_do':
       return {
         ...defaultBlock,
-        checked: (block as IToDoBlockObject).to_do.checked
+        checked: (block as IToDoBlockObject).to_do.checked,
       }
     case 'callout':
       return {
         ...defaultBlock,
-        icon: (block as ICalloutBlockObject).callout.icon
+        icon: (block as ICalloutBlockObject).callout.icon,
       }
     case 'child_page':
       return {
         ...defaultBlock,
-        title: (block as IChildPageBlockObject).child_page.title
+        title: (block as IChildPageBlockObject).child_page.title,
       }
     case 'image':
       return {
@@ -42,7 +52,7 @@ export const convertBlock = (block: IBlockObject): IBlock => {
     case 'code':
       return {
         ...defaultBlock,
-        language: (block as ICodeBlockObject).code.language
+        language: (block as ICodeBlockObject).code.language,
       }
     case 'bookmark':
       return {

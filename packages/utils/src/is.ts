@@ -9,8 +9,9 @@ const isNumber = (val: unknown): val is number => typeof val === 'number'
 const isString = (val: unknown): val is string => typeof val === 'string'
 const isSymbol = (val: unknown): val is symbol => typeof val === 'symbol'
 const isObject = (val: unknown): val is Record<any, any> => toString.call(val) === '[object Object]'
-const hasOwn = <T extends object, K extends keyof T>(val: T, key: K): key is K => Object.prototype.hasOwnProperty.call(val, key)
-export const typeOf = function(obj: unknown) {
+const hasOwn = <T extends object, K extends keyof T>(val: T, key: K): key is K =>
+  Object.prototype.hasOwnProperty.call(val, key)
+export const typeOf = function (obj: unknown) {
   return Object.prototype.toString.call(obj).slice(8, -1).toLowerCase()
 }
 export default {
@@ -24,5 +25,5 @@ export default {
   isString,
   isSymbol,
   isObject,
-  hasOwn
+  hasOwn,
 }

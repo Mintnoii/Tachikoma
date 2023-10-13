@@ -1,7 +1,7 @@
-import CreateAxiosInstance from './create-axios'
-import { IXmovRequest } from '.'
-import { responseHandler } from './handlers'
-const XMovAxios = CreateAxiosInstance({ responseHandler })
+import CreateAxiosInstance from "./create-axios";
+import { IXmovRequest } from ".";
+import { responseHandler } from "./handlers";
+const XMovAxios = CreateAxiosInstance({ responseHandler });
 
 /**
  * 请求服务 xmovRequest
@@ -9,6 +9,6 @@ const XMovAxios = CreateAxiosInstance({ responseHandler })
  * @param options axios 配置
  * @returns 返回 IResponse 格式数据的 promise
  */
-const xmovRequest: IXmovRequest = (url, options) => XMovAxios({ url, ...options })
+const xmovRequest: IXmovRequest = (url, options) => XMovAxios({ url, ...options });
 
-export default xmovRequest
+export default xmovRequest;

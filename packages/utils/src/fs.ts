@@ -45,5 +45,5 @@ export const download = async (args: { url: string; filename: string }): Promise
 export default {
   download,
   downloadBlob,
-  convertFileToBlob
+  convertFileToBlob,
 }

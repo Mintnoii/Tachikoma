@@ -1,4 +1,3 @@
-
 // import * as R from 'remeda'
 import { BlockObjectResponse } from '@notionhq/client/build/src/api-endpoints'
 import { IRichTextItem, IBlock } from '../types'
@@ -11,8 +10,8 @@ import { IRichTextItem, IBlock } from '../types'
  * @see https://developers.notion.com/reference/rich-text#the-annotation-object
  */
 export const withRichText = (block: BlockObjectResponse) => {
-  const rich_text_items = (block[block.type]['rich_text'] || [])
-  const rich_text = rich_text_items.map(item => {
+  const rich_text_items = block[block.type]['rich_text'] || []
+  const rich_text = rich_text_items.map((item) => {
     const { type, text, annotations } = item
     return {
       type,
@@ -35,4 +34,3 @@ export const getDefaultBlock = (block: BlockObjectResponse): IBlock => {
   const { id, type, has_children } = block
   return { id, type, has_children, ...withRichText(block) }
 }
-

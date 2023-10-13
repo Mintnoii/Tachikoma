@@ -8,26 +8,26 @@
 
 <script setup lang="ts">
 interface Props {
-  name: string
-  mini?: boolean
-  small?: boolean
-  middle?: boolean
-  large?: boolean
+  name: string;
+  mini?: boolean;
+  small?: boolean;
+  middle?: boolean;
+  large?: boolean;
 }
 
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 
 const sizeClass = {
   mini: props.mini,
   small: props.small,
   middle: props.middle,
-  large: props.large
-}
+  large: props.large,
+};
 
 const symbolId = computed(() => {
-  const namePathArr = String(props.name).replace('/', '-')
-  return `#svg-icon-${namePathArr}`
-})
+  const namePathArr = String(props.name).replace("/", "-");
+  return `#svg-icon-${namePathArr}`;
+});
 </script>
 
 <style lang="scss">
