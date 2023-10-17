@@ -11,6 +11,12 @@ importers:
       '@changesets/cli':
         specifier: ^2.26.2
         version: 2.27.1
+      '@commitlint/cli':
+        specifier: ^18.4.1
+        version: 18.4.3(typescript@5.3.3)
+      '@commitlint/config-conventional':
+        specifier: ^18.4.4
+        version: 18.4.4
       '@types/node':
         specifier: ^20.4.7
         version: 20.10.6
@@ -20,6 +26,12 @@ importers:
       '@typescript-eslint/parser':
         specifier: ^6.11.0
         version: 6.17.0(eslint@8.56.0)(typescript@5.3.3)
+      cz-git:
+        specifier: ^1.3.11
+        version: 1.8.0
+      czg:
+        specifier: ^1.8.0
+        version: 1.8.0
       eslint:
         specifier: ^8.56.0
         version: 8.56.0
@@ -35,6 +47,12 @@ importers:
       eslint-plugin-prettier:
         specifier: ^5.0.1
         version: 5.1.2(eslint-config-prettier@9.1.0)(eslint@8.56.0)(prettier@3.1.0)
+      husky:
+        specifier: ^8.0.1
+        version: 8.0.3
+      lint-staged:
+        specifier: ^15.1.0
+        version: 15.2.0
       prettier:
         specifier: 3.1.0
         version: 3.1.0
@@ -758,6 +776,13 @@ packages:
       - typescript
     dev: true
 
+  /@commitlint/config-conventional@18.4.4:
+    resolution: {integrity: sha512-Bz3sPQSboBN+Et/KyZrR+OJ3z9PrHDw7Bls0/hv94PmuHBtMq1dCGxS9XzTGzxeMNlytCC4kxF083tbhPljl3Q==}
+    engines: {node: '>=v18'}
+    dependencies:
+      conventional-changelog-conventionalcommits: 7.0.2
+    dev: true
+
   /@commitlint/config-validator@18.4.3:
     resolution: {integrity: sha512-FPZZmTJBARPCyef9ohRC9EANiQEKSWIdatx5OlgeHKu878dWwpyeFauVkhzuBRJFcCA4Uvz/FDtlDKs008IHcA==}
     engines: {node: '>=v18'}
@@ -812,6 +837,7 @@ packages:
   /@commitlint/load@18.4.3(typescript@5.3.3):
     resolution: {integrity: sha512-v6j2WhvRQJrcJaj5D+EyES2WKTxPpxENmNpNG3Ww8MZGik3jWRXtph0QTzia5ZJyPh2ib5aC/6BIDymkUUM58Q==}
     engines: {node: '>=v18'}
+    requiresBuild: true
     dependencies:
       '@commitlint/config-validator': 18.4.3
       '@commitlint/execute-rule': 18.4.3
@@ -2771,6 +2797,13 @@ packages:
       compare-func: 2.0.0
     dev: true
 
+  /conventional-changelog-conventionalcommits@7.0.2:
+    resolution: {integrity: sha512-NKXYmMR/Hr1DevQegFB4MwfM5Vv0m4UIxKZTTYuD98lpTknaZlSRrDOG4X7wIXpGkfsYxZTghUN+Qq+T0YQI7w==}
+    engines: {node: '>=16'}
+    dependencies:
+      compare-func: 2.0.0
+    dev: true
+
   /conventional-commit-types@3.0.0:
     resolution: {integrity: sha512-SmmCYnOniSsAa9GqWOeLqc179lfr5TRu5b4QFDkbsrJ5TZjPJx85wtOr3zn+1dbeNiXDKGPbZ72IKbPhLXh/Lg==}
     dev: true
@@ -2950,6 +2983,12 @@ packages:
   /cz-git@1.8.0:
     resolution: {integrity: sha512-XL5nXiqbW10YswQqWODrbwyWhydw3mLhP8OBrXyl8u4sIjTf/6mhGsizd6FA2VgPc4tZaNGguFoUyDj7vIBouw==}
     engines: {node: '>=v12.20.0'}
+    dev: true
+
+  /czg@1.8.0:
+    resolution: {integrity: sha512-vLX3AIUaE30C/qkeuL+g1fcdjZ72vBdON12E4V4vmuTKKe7OMoQ2MxBYbWhl5OP28+ggCrajxGBk6bdjIn5LgQ==}
+    engines: {node: '>=v12.20.0'}
+    hasBin: true
     dev: true
 
   /dargs@7.0.0:
