@@ -15,6 +15,7 @@
     "changeset": "changeset",
     "release": "changeset publish",
     "prepare": "husky install",
+    "postinstall": "npx husky install .husky",
     "publish": "changeset publish --registry=https://registry.npmjs.com/",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -24,7 +25,7 @@
     }
   },
   "lint-staged": {
-    "*.{ts,js,jsx,tsx,md,json,vue}": "eslint --fix"
+    "*.{ts,js,jsx,tsx,md,vue}": "eslint --fix --cache"
   },
   "keywords": [],
   "author": "",
