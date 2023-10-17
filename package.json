@@ -15,7 +15,6 @@
     "changeset": "changeset",
     "release": "changeset publish",
     "prepare": "husky install",
-    "postinstall": "npx husky install .husky",
     "publish": "changeset publish --registry=https://registry.npmjs.com/",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
