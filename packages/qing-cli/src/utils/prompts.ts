@@ -4,7 +4,7 @@ import prompts from 'prompts'
 // import { loadDefaultTemplates, loadCustomTemplates } from "./load.js";
 // import { noteLog, warnLog } from "./print.js";
 
-const onCancel = (prompt) => {
+const onCancel = () => {
   echo('👋 Bye~')
   process.exit(1)
 }
@@ -78,20 +78,6 @@ export const confirmCustomTmpl = async (tmplName: string) => {
       type: 'toggle',
       name: 'isRemove',
       message: `确定要删除自定义模板 ${tmplName} 吗？`,
-      initial: false,
-      active: '是',
-      inactive: '否',
-    },
-    { onCancel },
-  )
-}
-
-export const isRemoveFolder = async () => {
-  return prompts(
-    {
-      type: 'toggle',
-      name: 'removeFolder',
-      message: '请选择是否移除该文件夹',
       initial: false,
       active: '是',
       inactive: '否',

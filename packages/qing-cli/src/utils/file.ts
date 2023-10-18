@@ -1,6 +1,6 @@
 import { path, fs, $, echo, spinner } from 'zx'
 import { chalkLog } from './print'
-import { isRemoveFolder, isStartProject } from './prompts'
+import { isRemoveFolder } from '@/libs'
 
 /**
  * 检查是否已有同名文件夹 并询问是否删除
@@ -18,7 +18,7 @@ export const checkAndClearDir = async (name: string, force: boolean): Promise<bo
       chalkLog(`🗑 原有文件夹已被移除`, 'warn')
       return true
     } else {
-      const { removeFolder } = await isRemoveFolder()
+      const removeFolder = await isRemoveFolder()
       if (removeFolder) {
         await spinner('清理文件夹...', () => fs.remove(targetDir))
         chalkLog(`🗑 原有文件夹已被移除`, 'warn')

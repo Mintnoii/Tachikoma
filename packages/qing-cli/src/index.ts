@@ -3,8 +3,8 @@ import { program } from 'commander'
 // import { path, fs, } from "zx";
 // import {creator} from "./creator.js";
 import { init } from './command'
-import { QingCLI, chalkText } from './utils'
-import pkg from '../package.json'
+import { QingCLI, chalkText } from '@/utils'
+import pkg from '~/package.json'
 // import { listTemplate, addCustomTmpl, rmCustomTmpl } from "./utils/tmpls.js";
 // import {loadPackageJson} from "./utils/load.js";
 // 创建程序实例并设置版本号

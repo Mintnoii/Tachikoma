@@ -8,15 +8,8 @@
     "allowJs": true, // 脚本有时会以 js 编写，因此允许 js
     "esModuleInterop": true, // 通过导入内容创建命名空间，实现CommonJS和ES模块之间的互操作性
     "resolveJsonModule": true, // 是否解析 JSON 模块
-    "allowSyntheticDefaultImports": true, // 用于允许从没有默认导出的模块中默认导入
+    "allowSyntheticDefaultImports": true // 用于允许从没有默认导出的模块中默认导入
   },
-  "include": [
-    "packages/**/*.ts",
-    "packages/**/*.json",
-    "scripts",
-  ],
-  "exclude": [
-    "**/dist",
-    "**/node_modules"
-  ]
+  "include": ["packages/**/*.ts", "packages/**/*.json", "scripts"],
+  "exclude": ["**/dist", "**/node_modules"]
 }

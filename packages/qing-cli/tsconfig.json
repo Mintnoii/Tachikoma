@@ -1,0 +1,15 @@
+{
+  // 继承基础配置
+  "extends": "../../tsconfig.node.json",
+  "compilerOptions": {
+    // 编译器去baseUrl查找模块，所有非相对模块导入都会被当做相对于 baseUrl
+    "baseUrl": ".",
+    // 非相对模块导入的路径映射配置，可以用来解决模块导入路径问题。
+    "paths": {
+      "~/*": ["*"],
+      "@/*": ["src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "*.json"],
+  "exclude": ["dist", "node_modules"]
+}
