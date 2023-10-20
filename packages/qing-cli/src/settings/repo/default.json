@@ -1,0 +1,7 @@
+{
+    "vue-default": {
+		"url": "git@github.com:Mintnoii/tmpl-vue.git",
+		"desc": "Vue 默认模板",
+		"author": "Mintnoii"
+	}
+}

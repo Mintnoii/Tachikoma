@@ -2,12 +2,13 @@
 import prompts, { confirm, select, isCancel, cancel } from '@clack/prompts'
 // import { loadDefaultTemplates, loadCustomTemplates } from "./load.js";
 // import { noteLog, warnLog } from "./print.js";
-type CancelSymbol = symbol;
+import { defaultTmplJSONPath } from '@/settings'
+type CancelSymbol = symbol
 
 const withCancel = <T>(value: T | CancelSymbol): T => {
   if (isCancel(value)) {
-    cancel('强制退出！👋 Bye~');
-    process.exit(0);
+    cancel('强制退出！👋 Bye~')
+    process.exit(0)
   } else {
     return value
   }
@@ -78,12 +79,13 @@ export const isRemoveFolder = async () => {
     active: '是',
     inactive: '否',
     initialValue: false,
-  });
+  })
   return withCancel(value)
 }
 
 // 获取项目模板
 export const selectRepoTmpl = async () => {
+  console.log(defaultTmplJSONPath, 'defaultTmplJSONPath')
   // const allTmpls = { ...loadDefaultTemplates(), ...loadCustomTemplates() };
   const value = await select({
     message: '请选择模板，进行项目初始化：',

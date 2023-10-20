@@ -24,7 +24,6 @@ module.exports = defineConfig({
 	extends: [
 		"eslint:recommended",
 		"plugin:@typescript-eslint/recommended"
-		// "prettier", // 使用 prettier 它能禁用掉所有和 prettier 冲突的规则
 	],
 	// 自定义解析器（如何理解代码），替换默认的 Espree 解析器
 	parser: "@typescript-eslint/parser",
