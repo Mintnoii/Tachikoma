@@ -5,9 +5,10 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsup --watch",
+    "dev:cli": "pnpm --dir ./packages/qing-cli dev",
     "build": "tsup",
     "build-utils": "node --inspect=9999 --require ts-node/register scripts/build-learn/index.ts",
-    "build-shared": "cd packages/shared && pnpm build",
+    "build:shared": "pnpm --dir ./packages/shared build",
     "preinstall": "npx only-allow pnpm",
     "format": "prettier --write --cache packages",
     "lint": "eslint packages --ext .vue,.js,.ts,.jsx,.tsx,.md,.json --cache",

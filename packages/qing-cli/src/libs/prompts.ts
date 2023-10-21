@@ -2,7 +2,7 @@
 import prompts, { confirm, select, isCancel, cancel } from '@clack/prompts'
 // import { loadDefaultTemplates, loadCustomTemplates } from "./load.js";
 // import { noteLog, warnLog } from "./print.js";
-import { defaultTmplJSONPath } from '@/settings'
+import { RepoJSON } from '@/settings'
 type CancelSymbol = symbol
 
 const withCancel = <T>(value: T | CancelSymbol): T => {
@@ -85,7 +85,7 @@ export const isRemoveFolder = async () => {
 
 // 获取项目模板
 export const selectRepoTmpl = async () => {
-  console.log(defaultTmplJSONPath, 'defaultTmplJSONPath')
+  console.log(RepoJSON, 'RepoJSON')
   // const allTmpls = { ...loadDefaultTemplates(), ...loadCustomTemplates() };
   const value = await select({
     message: '请选择模板，进行项目初始化：',
