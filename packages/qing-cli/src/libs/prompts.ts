@@ -1,9 +1,7 @@
-// 具体交互内容
-import prompts, { confirm, select, isCancel, cancel } from '@clack/prompts'
-// import { noteLog, warnLog } from "./print.js";
+import { confirm, select, isCancel, cancel, group, text } from '@clack/prompts'
 import { RepoJSON } from '@/settings'
+import { IProjectInfo, IRepo } from '@/types'
 
-import { IRepo } from '@/types'
 type CancelSymbol = symbol
 
 const withCancel = <T>(value: T | CancelSymbol): T => {
@@ -100,34 +98,22 @@ export const selectRepoTmpl = async () => {
   return withCancel(value)
 }
 
-export const projectPrompt = [
-  {
-    type: 'text',
-    name: 'author',
-    message: '请输入项目作者：',
-  },
-  {
-    type: 'text',
-    name: 'description',
-    message: '请输入项目描述：',
-  },
-  {
-    type: 'text',
-    name: 'version',
-    message: '请输入项目版本：',
-    initial: '0.0.1',
-  },
-  {
-    type: 'text',
-    name: 'git',
-    message: '请输入项目 git 地址：',
-  },
-]
-
-// export const getProjectInfo = async () => {
-//   return prompts(projectPrompt, { onCancel })
-// }
-
+export const gatherProjectInfo = async (): Promise<IProjectInfo> => {
+  return group(
+    {
+      author: () => text({ message: '请输入项目作者', defaultValue: 'Mintnoii' }),
+      description: () => text({ message: '请输入项目描述', defaultValue: '' }),
+      version: () => text({ message: '请输入项目版本', defaultValue: '0.0.1' }),
+      git: () => text({ message: '请输入项目 git 地址', defaultValue: '' }),
+    },
+    {
+      onCancel: ({ results }) => {
+        cancel('👋 Bye~')
+        process.exit(0)
+      },
+    },
+  )
+}
 // // 是否启动项目
 // export const isStartProject = async () => {
 //   return prompts(
