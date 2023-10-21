@@ -1,22 +1,18 @@
 // 模板相关的方法
-import { fs, $, echo, spinner, } from "zx";
+import { fs, $, echo, spinner } from 'zx'
 // import Table from 'cli-table3';
-import {
-  chalkLog,
-  chalkText,
-} from "@/utils";
+import { chalkLog, chalkText } from '@/utils'
 // import {getTmplInfo, confirmCustomTmpl, selectProjectTmpl} from './prompts.js';
 // import { loadDefaultTemplates, loadCustomTemplates, customTmplJSONPath } from "./load.js";
-
 
 // export const listTemplate = () => {
 //   let table = new Table({
 //     head: ['模板名称', '简介', '作者','仓库', '分类'],
 //     style: {
 //       head: ['green'],
-//       // border: [], 
+//       // border: [],
 //     },
-//     colWidths: [null, 35, null,30, null], 
+//     colWidths: [null, 35, null,30, null],
 //     wordWrap: true,
 //     wrapOnWordBoundary: false,
 //   });
@@ -80,6 +76,6 @@ export const fetchTmpl = async (project_name: string) => {
   //   "下载项目模板...",
   //   () => $`git clone --depth 1 ${templateUrl} ${project_name}`
   // );
-  chalkLog(`🎉 模板下载完成`, 'success');
-  chalkLog(`🗂 ${process.cwd()}/${project_name}`, 'link');
+  chalkLog(`🎉 模板下载完成`, 'success')
+  chalkLog(`🗂 ${process.cwd()}/${project_name}`, 'link')
 }

@@ -1,8 +1,9 @@
 // 具体交互内容
 import prompts, { confirm, select, isCancel, cancel } from '@clack/prompts'
-// import { loadDefaultTemplates, loadCustomTemplates } from "./load.js";
 // import { noteLog, warnLog } from "./print.js";
 import { RepoJSON } from '@/settings'
+
+import { IRepo } from '@/types'
 type CancelSymbol = symbol
 
 const withCancel = <T>(value: T | CancelSymbol): T => {
@@ -85,22 +86,16 @@ export const isRemoveFolder = async () => {
 
 // 获取项目模板
 export const selectRepoTmpl = async () => {
-  console.log(RepoJSON, 'RepoJSON')
-  // const allTmpls = { ...loadDefaultTemplates(), ...loadCustomTemplates() };
+  const allRepo = { ...RepoJSON } as Record<string, IRepo>
   const value = await select({
     message: '请选择模板，进行项目初始化：',
-    options: [
-      { value: 'ts', label: 'TypeScript', hint: '' },
-      { value: 'js', label: 'JavaScript' },
-      { value: 'coffee', label: 'CoffeeScript', hint: 'oh no' },
-    ],
-    // options: Object.keys(allTmpls).map((key) => {
-    //   return {
-    //     label: key,
-    //     value: allTmpls[key]?.url || null,
-    //     hint: allTmpls[key]?.desc || ',
-    //   };
-    // })
+    options: Object.keys(allRepo).map((key) => {
+      return {
+        label: key,
+        value: allRepo[key].repo,
+        hint: allRepo[key].desc,
+      }
+    }),
   })
   return withCancel(value)
 }
