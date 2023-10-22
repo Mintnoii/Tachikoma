@@ -1,19 +1,10 @@
-// import {
-//   exit,
-//   startProject,
-//   checkAndClearDir,
-//   writePackageJson,
-// } from "./utils/help.js";
-//   import {selectPrivateNpm} from './utils/selectPrivateNpm.js'
-// import { getProjectInfo } from "./utils/prompts.js";
-// import { errorText } from './utils/print.js'
 import { $ } from 'zx'
-import { selectRepoTmpl, gatherProjectInfo } from '@/libs'
+import { selectTmplRepo, gatherProjectInfo } from '@/libs'
 import { checkAndClearDir, writeInPackageJson } from '@/utils'
 import { spinner, log } from '@clack/prompts'
 
-export const fetchTmpl = async (project_name: string) => {
-  const repo = await selectRepoTmpl()
+export const fetchTmplRepo = async (project_name: string) => {
+  const repo = await selectTmplRepo()
   const s = spinner()
   s.start('下载项目模板...')
   // 这里只会把默认分支 clone下来，其他远程分支并不在本地
@@ -29,7 +20,7 @@ export const init = async (project_name: string, options: any) => {
   if (cleared) {
     // 创建交互
     try {
-      await fetchTmpl(project_name)
+      await fetchTmplRepo(project_name)
       // const privateNpmArr = await selectPrivateNpm();
       const info = await gatherProjectInfo()
       await writeInPackageJson(project_name, info, [])

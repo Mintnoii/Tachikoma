@@ -83,10 +83,10 @@ export const isRemoveFolder = async () => {
 }
 
 // 获取项目模板
-export const selectRepoTmpl = async () => {
+export const selectTmplRepo = async () => {
   const allRepo = { ...RepoJSON } as Record<string, IRepo>
   const value = await select({
-    message: '请选择模板，进行项目初始化：',
+    message: '请选择模板仓库，进行项目初始化：',
     options: Object.keys(allRepo).map((key) => {
       return {
         label: key,

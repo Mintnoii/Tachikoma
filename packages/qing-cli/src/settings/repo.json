@@ -4,5 +4,11 @@
     "desc": "Vue 默认模板",
     "author": "Mintnoii",
     "type": "default"
+  },
+  "test-default": {
+    "repo": "git@github.com:Mintnoii/tmpl-vue.git",
+    "desc": "test模板",
+    "author": "Mintnoii",
+    "type": "custom"
   }
 }

@@ -2,8 +2,8 @@
 import { program } from 'commander'
 // import { path, fs, } from "zx";
 // import {creator} from "./creator.js";
-import { init } from './command'
 import { QingCLI, chalkText } from '@/utils'
+import { init, listAllRepos } from '@/command'
 import pkg from '~/package.json'
 // import { listTemplate, addCustomTmpl, rmCustomTmpl } from "./utils/tmpls.js";
 // import {loadPackageJson} from "./utils/load.js";
@@ -40,11 +40,11 @@ program
   .option('-f, --force', '覆盖项目同名文件夹，强制初始化')
   .action((project_name, options) => init(project_name, options))
 
-// program
-//   .command("list")
-//   .alias("ls")
-//   .description("👀 查看当前所有模板")
-//   .action(() => listTemplate());
+program
+  .command('list-repos')
+  .alias('lsrepos')
+  .description('👀 查看当前所有模板')
+  .action(() => listAllRepos())
 
 // program
 //   .command("add-tmpl")
