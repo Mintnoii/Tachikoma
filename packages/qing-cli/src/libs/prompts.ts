@@ -7,7 +7,9 @@ type CancelSymbol = symbol
 const withCancel = <T>(value: T | CancelSymbol): T => {
   if (isCancel(value)) {
     cancel('强制退出！👋 Bye~')
-    process.exit(0)
+    // 用户通过 Ctrl+C 终止一个任务时，惯例是使用退出码 1
+    // 退出码 0 通常表示成功完成，而退出码 1 可以用于表示一般性错误，包括用户中断任务这类情况
+    process.exit(1)
   } else {
     return value
   }

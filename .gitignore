@@ -7,8 +7,6 @@
 *.local
 dist
 node_modules
-types
-coverage
 
 # 文件
 .changeset/pre.json
