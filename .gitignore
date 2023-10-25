@@ -11,5 +11,7 @@ node_modules
 # 文件
 .changeset/pre.json
 meta/meta.json
+# apps/docs/.vitepress/cache
+cache
 # comps 输出产物
 */comps
