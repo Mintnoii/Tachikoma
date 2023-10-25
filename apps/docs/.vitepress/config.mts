@@ -4,8 +4,8 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'Tachikomas',
   description: 'My personalized dev kit',
-  base: '/tachikomas/',
-  head: [['link', { rel: 'icon', href: '/tachikomas/favicon.ico' }]],
+  base: './',
+  head: [['link', { rel: 'icon', href: '/favicon.ico' }]],
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
