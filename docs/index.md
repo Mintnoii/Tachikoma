@@ -7,7 +7,7 @@ hero:
   # text: 'My personalized dev kit'
   tagline: My personalized dev kit
   image:
-    src: /assets/logo.png
+    src: /favicon.ico
     alt: VitePress
   actions:
     - theme: brand
