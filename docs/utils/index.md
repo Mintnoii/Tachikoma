@@ -4,7 +4,7 @@ outline: deep
 
 # Utils
 
-工具函数包
+工具函数包，包含了常用的文件处理、Promise 处理、字符串处理等工具方法。
 
 ## Promise
 
