@@ -9,7 +9,7 @@
     // 编译目标 js 的版本
     "target": "ESNext",
     "module": "ESNext",
-    // 模块解析策略
+    // 模块解析策略 默认 node
     "moduleResolution": "Node",
     // 是否生成辅助 debug 的 .map.js 文件
     "sourceMap": false,
@@ -25,7 +25,8 @@
     // 与 esModuleInterop: true 配合允许从 commonjs 的依赖中直接按 import XX from 'xxx' 的方式导出 default 模块。
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-
+    // 在处理文件名时强制保持一致的大小写
+    "forceConsistentCasingInFileNames": true,
     // 在使用 const enum 或隐式类型导入时受到 TypeScript 的警告
     "isolatedModules": true,
     // 检查类型时是否跳过类型声明文件，一般在上游依赖存在类型问题时置为 true。

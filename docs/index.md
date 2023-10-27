@@ -21,10 +21,15 @@ features:
   - icon: 🛠️
     title: Utils
     details: 常用的各类工具函数
+    link: utils/index
+
   - icon: 👾
     title: CLI
     details: 脚手架工具
+    link: cli/index
+
   - icon: 🪄
     title: Notion-Kit
     details: 常用与 Notion API 的交互，方便地查询数据库、检索页面和处理各种类型的 Notion Block
+    link: notion/index
 ---

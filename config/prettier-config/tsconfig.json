@@ -1,0 +1,6 @@
+{
+  // 继承基础配置
+  "extends": "../../tsconfig.node.json",
+  "include": ["./src/*.ts"],
+  "exclude": ["node_modules"],
+}
