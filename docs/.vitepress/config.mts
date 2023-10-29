@@ -17,9 +17,10 @@ export default defineConfig({
       {
         text: 'Kits',
         items: [
-          { text: 'Utils', link: 'utils/index' },
-          { text: 'CLI', link: 'cli/index' },
-          { text: 'Notion-Kit', link: 'notion/index'}
+          { text: 'Utils', link: 'utils' },
+          { text: 'Configs', link: 'configs' },
+          { text: 'Notion-Kit', link: 'notion'},
+          { text: 'CLI', link: 'cli' },
         ]
       }
     ],

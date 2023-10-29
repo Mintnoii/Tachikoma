@@ -1,0 +1,14 @@
+{
+  "name": "@tachikomas/tsconfig",
+  "version": "0.0.1",
+  "keywords": [],
+  "author": "Mintnoii",
+  "type": "module",
+  "description": "TypeScript Configuration",
+  "license": "MIT",
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false
+}
