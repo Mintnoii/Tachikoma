@@ -1,5 +1,6 @@
-export { defineConfig } from 'eslint-define-config'
-export default {
+import { defineConfig } from 'eslint-define-config'
+
+export default defineConfig({
   // 指定此配置为根级配置，eslint 不会继续向上层寻找
   root: true,
   // 将浏览器 API、ES API 和 Node API 看做全局变量，不会被特定的规则(如 no-undef)限制。
@@ -52,4 +53,4 @@ export default {
     // 'operator-linebreak': ['error', 'after'],
     // 'class-methods-use-this': 'off',
   },
-}
+})

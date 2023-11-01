@@ -1,10 +1,15 @@
 {
   "name": "@tachikomas/eslint-config",
-  "version": "1.0.0",
-  "keywords": [],
+  "version": "0.1.7",
+  "keywords": [
+    "tachikomas",
+    "eslint",
+    "eslint-config"
+  ],
   "author": "Mintnoii",
-  "type": "module",
-  "description": "ESLint Configuration",
+  "main": "dist/index.js",
+  "type": "commonjs",
+  "description": "Mintnoii’s eslint-config",
   "license": "MIT",
   "private": false,
   "exports": {
@@ -13,8 +18,8 @@
     }
   },
   "scripts": {
-    "build": "tsup src/*.ts --outDir dist --minify --clean --legacyOutput",
-    "dev": "pnpm build -- --watch"
+    "build": "tsup src/*.ts --splitting --cjsInterop",
+    "dev": "pnpm build --watch"
   },
   "dependencies": {
     "@typescript-eslint/eslint-plugin": "^6.11.0",
