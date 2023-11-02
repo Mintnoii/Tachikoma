@@ -27,6 +27,17 @@ export default defineConfig({
 
     socialLinks: [
       { icon: 'github', link: 'https://github.com/Mintnoii/Tachikoma' }
-    ]
+    ],
+    outline: 3,
+    docFooter: {
+      prev: false,
+      next: false
+    },
+    lastUpdated: {
+      text: '最近更新时间',
+      formatOptions:
+        { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false }
+
+    }
   }
 })

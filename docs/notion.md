@@ -1,7 +1,3 @@
----
-outline: deep
----
-
 # Notion-Kit
 
 Notion-Kit 是一个简化与 Notion API 交互的 TypeScript 库。它提供了一种方便的方式来查询数据库、检索页面，并处理各种类型的 Notion 区块。
