@@ -8,7 +8,7 @@ outline: deep
 
 ## Promise
 
-### handleErrorPromise
+### handleErrorPromise <Badge type="warning" text="👍" />
 - 参数：promise：要处理的 Promise 对象。errorExt（可选）：附加到错误对象的额外信息。
 - 功能：处理 Promise 的结果和错误，返回一个包含结果或错误的数组。
 
