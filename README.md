@@ -4,30 +4,25 @@ A Monorepo repository containing some of the configuration items I use frequentl
 
 ## 📦️ Packages
 
-### 🔧 Configuration
-
-**Spoiler:** They are opinionated, but can be overriden, extended, or ignored. 🙈
+### 🔧 Configs
 
 - [`@tachikomas/eslint-config`](https://github.com/Mintnoii/tachikoma/packages/tree/main/config/eslint-config)
 - [`@tachikomas/lint-staged`](https://github.com/Mintnoii/tachikoma/packages/tree/main/config/lint-staged)
 - [`@tachikomas/prettier-config`](https://github.com/Mintnoii/tachikoma/packages/tree/main/config/prettier-config)
 - [`@tachikomas/tsconfig`](https://github.com/Mintnoii/tachikoma/packages/tree/main/config/tsconfig)
 
-### 🧰️ utils
-
-Scripts that are generically re-used throughout.
+### 🧰️ Utils
 
 - [`@tachikomas/utils`](https://github.com/Mintnoii/tachikoma/packages/tree/main/packages/utils)
 
-### 🔮 qing-cli
+### 🔮 Qing-Cli
 
 - [`@tachikomas/qing-cli`](https://github.com/Mintnoii/tachikoma/packages/tree/main/packages/qing-cli)
 
-### 🎲 Misc
+### 🎲 Notion
 
 - [`@tachikomas/notion`](https://github.com/Mintnoii/tachikoma/packages/tree/main/packages/notion)
   - 🗃️ API (hyper-customized `@notionhq/client`) for [`Notion`](https://www.notion.so)
-  - 🚀️ Live Example: [`tachikomasgerald.com`](https://tachikomasgerald.com)
 
 ### 🔜 Coming Soon(ish)
 
