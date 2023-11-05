@@ -27,7 +27,7 @@
     }
   },
   "lint-staged": {
-    "*.{ts,js,jsx,tsx,md,vue}": "eslint --fix --cache"
+    "*.{ts,js,jsx,tsx,vue}": "eslint --fix --cache"
   },
   "keywords": [],
   "author": "",
