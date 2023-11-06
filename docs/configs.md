@@ -6,8 +6,6 @@ Custom `tsconfig` setup that can be extended.
 
 ### Breakdown
 
-All currently `cjs` format:
-
 - `./base`
 
 todo
@@ -22,13 +20,21 @@ pnpm install @tachikomas/tsconfig --dev
 
 ### Example
 
+比如在项目的 `tsconfig.base.json` 中继承使用 `@tachikomas/tsconfig`：
+
 ```json
+// tsconfig.base.json
 {
-  // ...
-  "extends": "@tachikomas/tsconfig/base.json"
-  // ...
+  "extends": "@tachikomas/tsconfig/base.json",
+  "compilerOptions": {
+    // other options
+  },
 }
 ```
+
+如果对最终 tsconfig 实际应用的编译选项或者作用的文件产生疑惑，可以使用命令验证：
+
+`npx tsc  -p tsconfig.comp.json --showConfig`
 
 ## @tachikomas/prettier-config
 

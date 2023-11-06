@@ -4,8 +4,6 @@ Custom `tsconfig` setup that can be extended.
 
 ## Breakdown
 
-All currently `cjs` format:
-
 - `./base`
 
 todo
