@@ -28,7 +28,7 @@ export default defineConfig({
     socialLinks: [
       { icon: 'github', link: 'https://github.com/Mintnoii/Tachikoma' }
     ],
-    outline: 3,
+    outline: [2, 3],
     docFooter: {
       prev: false,
       next: false

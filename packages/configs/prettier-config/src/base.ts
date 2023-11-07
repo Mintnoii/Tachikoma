@@ -1,6 +1,6 @@
-import type { Options } from 'prettier'
+import type { Config } from 'prettier'
 
-const config: Options = {
+const BaseConfig: Config = {
   tabWidth: 2, // 每次缩进的空格数（默认2）
   useTabs: false, // 是否使用tab进行缩进（默认false）
   semi: false, // 声明结尾使用分号(默认true)
@@ -12,8 +12,8 @@ const config: Options = {
   plugins: ['prettier-plugin-pkg'],
   printWidth: 100, // 一行的字符数，超过会换行（默认80）
   arrowParens: 'always', // 只有一个参数的箭头函数参数是否带圆括号（默认avoid)
-  stylelintIntegration: false, // 不使用 stylelint 的代码格式进行校验
-  tslintIntegration: false, // 不使用 tslint 的代码格式进行校验
+  // stylelintIntegration: false, // 不使用 stylelint 的代码格式进行校验
+  // tslintIntegration: false, // 不使用 tslint 的代码格式进行校验
   overrides: [
     {
       files: '*.json',
@@ -24,4 +24,4 @@ const config: Options = {
   ],
 }
 
-export default config
+export default BaseConfig

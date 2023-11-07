@@ -1,10 +1,13 @@
 {
   "name": "@tachikomas/prettier-config",
-  "version": "0.1.0",
-  "keywords": [],
+  "version": "0.1.2",
+  "keywords": [
+    "tachikomas",
+    "prettier"
+  ],
   "author": "Mintnoii",
   "main": "./dist/index.js",
-  "type": "module",
+  "type": "commonjs",
   "description": "Tachikomas Prettier Configuration",
   "license": "MIT",
   "private": false,

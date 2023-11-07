@@ -23,17 +23,17 @@ hero:
 features:
   - icon: 🛠️
     title: Utils
-    details: 常用的各类工具函数，只追求简单、实用
+    details: 常用的各类工具函数，模块化，只追求简单、实用
     link: utils
 
   - icon: 🪬
     title: Configs
-    details: 项目常用的基础配置，包括 tsconfig 与各类 lint-config，个性化但都可以被覆盖，扩展或忽略
+    details: 项目常用的基础配置，包括 tsconfig 与各类 lint-config
     link: configs
 
   - icon: 🪄
     title: Notion-Kit
-    details: 常用与 Notion API 的交互，方便地查询数据库、检索页面和处理各种类型的 Notion Block
+    details: 简化封装常用的 Notion API，方便查询数据库、检索页面和处理各种类型的 Notion Block
     link: notion
 
   - icon: 👾

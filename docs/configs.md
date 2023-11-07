@@ -1,26 +1,20 @@
 # Configs
 
-## @tachikomas/tsconfig
+## tsconfig
 
-Custom `tsconfig` setup that can be extended.
+`@tachikomas/tsconfig`: 可以扩展的自定义 `tsconfig` 设置
 
-### Breakdown
+### 功能
 
-- `./base`
+- `base.json` 基础配置文件，供其他配置文件继承
 
-todo
-
-- `./next` todo
-- `./node`
-- `./react`
+### 使用
 
 ```sh
 pnpm install @tachikomas/tsconfig --dev
 ```
 
-### Example
-
-比如在项目的 `tsconfig.base.json` 中继承使用 `@tachikomas/tsconfig`：
+比如在项目的 `tsconfig.base.json` 中继承使用 `@tachikomas/tsconfig`
 
 ```json
 // tsconfig.base.json
@@ -36,20 +30,33 @@ pnpm install @tachikomas/tsconfig --dev
 
 `npx tsc  -p tsconfig.comp.json --showConfig`
 
-## @tachikomas/prettier-config
 
-Quick prettier config to share across
+## eslint-config
 
-### Usage
+`@tachikomas/eslint-config`: 可以扩展的自定义 `eslint` 设置
+
+- 注意：目前只提供了 CommonJS 规范的配置导出
+
+### 使用
+
+```sh
+pnpm install @tachikomas/eslint-config --dev
+```
+
+比如在项目的 `.eslintrc.js` 中继承使用 `@tachikomas/eslint-config`
 
 ```js
+// .eslintrc.js
 module.exports = {
-  ...require('@tachikomas/prettier-config'),
+  extends: ['@tachikomas/eslint-config'],
+  rules: {
+    // other rules
+  },
 }
 ```
 
 
-## 踩坑
+### 踩坑
 
 在对 eslint-config 配置文件进行打包时，打包后的文件在项目中引入后一直报这个错误
 
@@ -74,3 +81,23 @@ ESLint configuration in .eslintrc.js » @tachikomas/eslint-config is invalid:
 - https://github.com/egoist/tsup/issues/572#issuecomment-1680153238
 
 所以最终打包命令用的是 `"build": "tsup src/*.ts --splitting --cjsInterop"`
+
+## prettier-config
+
+`@tachikomas/prettier-config`: `prettier` 共享配置
+
+- 注意：目前只提供了 CommonJS 规范的配置导出
+
+### 使用
+
+```sh
+pnpm install @tachikomas/prettier-config --dev
+```
+
+比如在项目的 `.prettierrc.cjs` 中继承使用 `@tachikomas/prettier-config`
+
+```js
+module.exports = {
+  ...require('@tachikomas/prettier-config'),
+}
+```
