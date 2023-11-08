@@ -5,7 +5,6 @@
   "editor.detectIndentation": false,
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": true
-  },
-  "eslint.workingDirectories": [{ "mode": "auto" }]
+    "source.fixAll": "explicit"
+  }
 }

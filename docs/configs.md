@@ -4,8 +4,6 @@
 
 `@tachikomas/tsconfig`: 可以扩展的自定义 `tsconfig` 设置
 
-### 功能
-
 - `base.json` 基础配置文件，供其他配置文件继承
 
 ### 使用
@@ -35,7 +33,9 @@ pnpm install @tachikomas/tsconfig --dev
 
 `@tachikomas/eslint-config`: 可以扩展的自定义 `eslint` 设置
 
-- 注意：目前只提供了 CommonJS 规范的配置导出
+**注意：**
+
+- 目前只提供了 CommonJS 规范的配置导出
 
 ### 使用
 
@@ -86,7 +86,11 @@ ESLint configuration in .eslintrc.js » @tachikomas/eslint-config is invalid:
 
 `@tachikomas/prettier-config`: `prettier` 共享配置
 
-- 注意：目前只提供了 CommonJS 规范的配置导出
+**注意：**
+
+- 目前只提供了 CommonJS 规范的配置导出
+- 如果 vscode 中配置的 `prettier:configPath` 是 `.prettierrc` 文件，为了避免冲突，或许需要在 `.vscode/settings.json` 中设置 `"prettier.configPath": ".prettierrc.cjs"`
+
 
 ### 使用
 
