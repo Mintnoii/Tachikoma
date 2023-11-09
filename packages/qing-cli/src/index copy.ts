@@ -5,10 +5,6 @@ import { program } from 'commander'
 import { QingCLI, chalkText } from '@/utils'
 import { init, listAllRepos } from '@/command'
 import pkg from '~/package.json'
-import 'zx/globals'
-
-const branch = await $`git branch --show-current`;
-console.log(`Current git branch is ${branch}`);
 // import { listTemplate, addCustomTmpl, rmCustomTmpl } from "./utils/tmpls.js";
 // import {loadPackageJson} from "./utils/load.js";
 // 创建程序实例并设置版本号
