@@ -1,6 +1,6 @@
 {
   "name": "@tachikomas/eslint-config",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "keywords": [
     "tachikomas",
     "eslint",
@@ -15,6 +15,9 @@
   "exports": {
     ".": {
       "default": "./dist/index.js"
+    },
+    "./vue": {
+      "default": "./dist/vue.js"
     }
   },
   "scripts": {
@@ -31,5 +34,11 @@
   "publishConfig": {
     "access": "public"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "devDependencies": {
+    "eslint-plugin-vue": "^9.23.0"
+  },
+  "peerDependencies": {
+    "eslint-plugin-vue": "^9.23.0"
+  }
 }

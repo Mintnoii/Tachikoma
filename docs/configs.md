@@ -29,7 +29,7 @@ pnpm install @tachikomas/tsconfig --dev
 `npx tsc  -p tsconfig.comp.json --showConfig`
 
 
-## eslint-config
+## eslint
 
 `@tachikomas/eslint-config`: 可以扩展的自定义 `eslint` 设置
 
@@ -40,7 +40,7 @@ pnpm install @tachikomas/tsconfig --dev
 ### 使用
 
 ```sh
-pnpm install @tachikomas/eslint-config --dev
+pnpm install @tachikomas/eslint-config -D
 ```
 
 比如在项目的 `.eslintrc.js` 中继承使用 `@tachikomas/eslint-config`
@@ -48,12 +48,15 @@ pnpm install @tachikomas/eslint-config --dev
 ```js
 // .eslintrc.js
 module.exports = {
-  extends: ['@tachikomas/eslint-config'],
+  extends: ['@tachikomas/'],
+  // extends: ['@tachikomas/eslint-config'],
+  //   extends: ['@tachikomas/eslint-config/vue'],
   rules: {
     // other rules
   },
 }
 ```
+可以通过 `npx eslint --print-config .eslintrc.js` 输出解析后的完整的ESLint配置
 
 
 ### 踩坑
