@@ -1,0 +1,64 @@
+# ASR 错词表 —— 抖音转录稿中英文工具名/专有名词被语音识别转错的已知案例
+#
+# 判据（Ghost 库两次内化确认，2026-08-04 / 2026-08-06）：
+# 抖音类素材里的英文工具名与专有名词一律视为不可信，回查原始来源后才可信。
+# 本表是这条判据的落地载体：转录/总结遇到 wrong 词时应优先按 correct 理解，
+# 待查证点可引用本表。
+#
+# status 语义：
+#   - verified：已对照原始来源核实
+#   - pending：推测正确写法，待确认
+#
+# 用法：此文件是「积累」层——新的错词案例经人工核对后追加到这里；
+# 自动修复（转录后替换/标注）逻辑后续接入，本表暂只提供查询。
+
+entries:
+  # ── 用 WorkBuddy 把刷视频变成知识库（2026-08-06 内化核实）──
+  - wrong: "窝巴里"
+    wrong_variants: ["WordBuddy"]
+    correct: "WorkBuddy"
+    status: verified
+    source: "用 WorkBuddy 把刷视频变成知识库"
+    context: "微信侧小程序/助理入口产品名"
+  - wrong: "翻派"
+    correct: "ffmpeg"
+    status: verified
+    source: "用 WorkBuddy 把刷视频变成知识库"
+    context: "音频提取/关键帧抽取工具"
+  - wrong: "DLP"
+    correct: "yt-dlp"
+    status: verified
+    source: "用 WorkBuddy 把刷视频变成知识库"
+    context: "视频下载工具（18 万 star）"
+  - wrong: "Guitars"
+    correct: "GitHub"
+    status: verified
+    source: "用 WorkBuddy 把刷视频变成知识库"
+    context: "开源平台"
+  - wrong: "规矩流动"
+    correct: "硅基流动"
+    status: verified
+    source: "用 WorkBuddy 把刷视频变成知识库"
+    context: "LLM API 服务商（SiliconFlow）"
+  - wrong: "试句模型"
+    correct: "视觉模型"
+    status: verified
+    source: "用 WorkBuddy 把刷视频变成知识库"
+    context: "多模态/看图模型"
+
+  # ── 2026 年第 32 周 GitHub 热门 AI 项目盘点（2026-08-04 内化核实）──
+  - wrong: "JGOLD"
+    correct: "jcode"
+    status: verified
+    source: "2026 年第 32 周 GitHub 热门 AI 项目盘点"
+    context: "单会话 28MB、可开十个不卡的终端工具"
+  - wrong: "OmniRoot"
+    correct: "OmniRoute"
+    status: verified
+    source: "2026 年第 32 周 GitHub 热门 AI 项目盘点"
+    context: "路由/API 网关类项目，连续两周上榜"
+  - wrong: "ADSD"
+    correct: "ADHD"
+    status: verified
+    source: "2026 年第 32 周 GitHub 热门 AI 项目盘点"
+    context: "周榜话题中提到的病症名"
