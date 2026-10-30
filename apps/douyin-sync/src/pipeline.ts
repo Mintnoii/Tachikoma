@@ -111,19 +111,29 @@ export async function processAweme(
           ocrMarkdown,
         ]).join("\n");
       })()
-    : sift([
-        `# ${title}`,
-        "",
-        `> 创作者: [${item.author.nickname}](https://www.douyin.com/user/${item.author.secUid})`,
-        `> 发布时间: ${new Date(item.createTime * 1000).toISOString()}`,
-        `> 原始链接: ${item.shareUrl}`,
-        "",
-        "## 作品描述与要点",
-        "",
-        item.desc || "（原作者未填写文案描述）",
-        "",
-        item.videoPlayUrl ? `> 视频源直链: [播放链接](${item.videoPlayUrl})` : null,
-      ]).join("\n");
+    : await (async () => {
+        const videoSource =
+          downloadedAssets.length > 0
+            ? downloadedAssets[0]
+            : (item.videoPlayUrl || item.shareUrl);
+        const rawTranscript = options.customTranscribe
+          ? await options.customTranscribe(videoSource)
+          : undefined;
+        const transcriptMarkdown =
+          rawTranscript?.trim() || item.desc || "（原作者未填写文案描述）";
+
+        return sift([
+          `# ${title}`,
+          "",
+          `> 创作者: [${item.author.nickname}](https://www.douyin.com/user/${item.author.secUid})`,
+          `> 发布时间: ${new Date(item.createTime * 1000).toISOString()}`,
+          `> 原始链接: ${item.shareUrl}`,
+          "",
+          "## 转录内容 / Notes",
+          "",
+          transcriptMarkdown,
+        ]).join("\n");
+      })();
 
   const ingestionResult: IngestionResult = {
     sourceUrl: item.shareUrl,
