@@ -4,3 +4,6 @@ dist/
 *.log
 .env
 .env.local
+
+# 测试隔离沙盒产物
+tests/sandbox/

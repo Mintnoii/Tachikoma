@@ -1,0 +1,22 @@
+{
+  "name": "@tachikoma/web-clipper",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Tachikoma 网页与推文 DOM 提纯子应用 (零焦点 CDP / Readability 净化)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.5.0",
+    "@tachikoma/core": "workspace:*",
+    "jsdom": "^26.0.0",
+    "pathe": "^2.0.3",
+    "playwright-core": "^1.50.0",
+    "radash": "^12.1.1",
+    "turndown": "^7.2.0"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^21.1.7",
+    "@types/turndown": "^5.0.6"
+  }
+}

@@ -1,0 +1,11 @@
+[package]
+name = "tachikoma-guard"
+version = "0.1.0"
+edition = "2021"
+description = "Tachikoma 静态无黑框守护二进制，淘汰 VBS/PowerShell 胶水"
+
+# 默认在 Windows 下消除控制台黑框 (生产构建)
+# [target.'cfg(windows)'.build-dependencies]
+
+[dependencies]
+# 轻量依赖或标准库

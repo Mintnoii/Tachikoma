@@ -1,0 +1,15 @@
+{
+  "name": "@tachikoma/core",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Tachikoma 核心契约抽象与 RFC-2026-0922 格式化规范",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.14",
+    "gray-matter": "^4.0.3",
+    "pathe": "^2.0.3",
+    "radash": "^12.1.1"
+  }
+}

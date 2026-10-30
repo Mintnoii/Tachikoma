@@ -1,0 +1,21 @@
+{
+  "name": "@tachikoma/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Tachikoma 统一摄入门面命令行 (tachikoma ingest / sync)",
+  "bin": {
+    "tachikoma": "./dist/cli.js",
+    "tachikoma-dev": "./src/cli.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@tachikoma/core": "workspace:*",
+    "@tachikoma/douyin-sync": "workspace:*",
+    "@tachikoma/web-clipper": "workspace:*",
+    "commander": "^13.1.0",
+    "pathe": "^2.0.3",
+    "radash": "^12.1.1"
+  }
+}
