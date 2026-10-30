@@ -17,3 +17,9 @@ export interface PurifiedArticle {
   lang?: string;
   mediaType: MediaType;
 }
+
+export interface MetaDescriptionResult {
+  content: string;
+  author?: string;
+  ogImage?: string;
+}
