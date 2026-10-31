@@ -99,11 +99,11 @@ export interface IngestionResult {
 ```markdown
 ---
 title: "作品或文章标题"
-entry: "tachikoma"
-media_type: "article | gallery | video"
+entry: "wechat-clipper | twitter-clipper | douyin-sync"
+media_type: "article | tweet | video | gallery"
 source_url: "https://..."
 created_at: 2026-10-31T02:45:00+08:00
-tags: [tachikoma, ingest]
+tags: [wechat-clipper, article]
 ---
 
 ## 核心摘要 / OCR 文字稿 / 正文内容

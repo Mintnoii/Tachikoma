@@ -214,7 +214,7 @@ test("Phase 2: Douyin Sync Sub-App Comprehensive Tests", async (t) => {
       // 验证落盘文件格式与 RFC 规范
       const cardPath = join(SANDBOX_DIR, "douyin", "攻壳机动队沙盒测试图集.md");
       const parsed = await readMarkdownFile(cardPath);
-      assert.equal(parsed.data.entry, "tachikoma");
+      assert.equal(parsed.data.entry, "douyin-sync");
       assert.equal(parsed.data.media_type, "gallery");
       assert.ok(parsed.body.includes("图集作品 OCR 转录文字稿"));
       assert.ok(parsed.body.includes("这是图集的第一页测试文本"));
@@ -262,7 +262,7 @@ test("Phase 2: Douyin Sync Sub-App Comprehensive Tests", async (t) => {
       // 验证落盘文件格式与 Ghost RFC 规范
       const cardPath = join(SANDBOX_DIR, "douyin", "攻壳机动队：塔奇克马AI语音实录.md");
       const parsed = await readMarkdownFile(cardPath);
-      assert.equal(parsed.data.entry, "tachikoma");
+      assert.equal(parsed.data.entry, "douyin-sync");
       assert.equal(parsed.data.media_type, "video");
       assert.ok(parsed.body.includes("# 攻壳机动队：塔奇克马AI语音实录"));
       assert.ok(parsed.body.includes("> 创作者: [巴特](https://www.douyin.com/user/sec_u200)"));

@@ -1,6 +1,17 @@
 import { Static, Type } from "@sinclair/typebox";
 
 /**
+ * 摄入物理渠道类型
+ */
+export type EntryType =
+  | "wechat-clipper"
+  | "twitter-clipper"
+  | "douyin-sync"
+  | "manual-research"
+  | "manual-notes"
+  | "ai-conversation";
+
+/**
  * 摄入媒体类型
  */
 export type MediaType = "article" | "tweet" | "video" | "gallery";
@@ -20,7 +31,7 @@ export interface AuthorInfo {
  */
 export interface RFC2026Frontmatter {
   title: string;
-  entry: "tachikoma";
+  entry: EntryType;
   media_type: MediaType;
   source_url: string;
   created_at: string;
@@ -35,6 +46,7 @@ export interface RFC2026Frontmatter {
  */
 export interface IngestionResult {
   sourceUrl: string;
+  entry?: EntryType; // 可选显式指定；省略时由 formatter 根据 sourceUrl/mediaType 自动推断
   mediaType: MediaType;
   title: string;
   author: AuthorInfo;

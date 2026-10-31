@@ -62,9 +62,9 @@ test("Task 1.3: Core Schema & RFC Formatting in isolated sandbox", async (t) => 
 
     const { markdown, sha256, frontmatter } = formatToRFC2026Markdown(item);
     assert.ok(sha256 && sha256.length === 64, "SHA-256 哈希计算完整");
-    assert.equal(frontmatter.entry, "tachikoma");
+    assert.equal(frontmatter.entry, "douyin-sync");
     assert.equal(frontmatter.media_type, "gallery");
-    assert.ok(markdown.includes("entry: tachikoma"));
+    assert.ok(markdown.includes("entry: douyin-sync"));
     assert.ok(markdown.includes("sha256: " + sha256));
     assert.ok(markdown.includes("## OCR 识别文本"));
 
@@ -92,7 +92,7 @@ test("Task 1.3: Core Schema & RFC Formatting in isolated sandbox", async (t) => 
     // 通过 @dotagents/utils 的 readMarkdownFile 读取并检验
     const parsed = await readMarkdownFile(filePath);
     assert.equal(parsed.data.title, "沙盒安全落盘测试");
-    assert.equal(parsed.data.entry, "tachikoma");
+    assert.equal(parsed.data.entry, "wechat-clipper");
     assert.equal(parsed.data.sha256, sha256);
     assert.ok(parsed.body.includes("这是测试落盘的内容"));
   });

@@ -1,6 +1,15 @@
 import { Static, Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 
+export const EntryTypeSchema = Type.Union([
+  Type.Literal("wechat-clipper"),
+  Type.Literal("twitter-clipper"),
+  Type.Literal("douyin-sync"),
+  Type.Literal("manual-research"),
+  Type.Literal("manual-notes"),
+  Type.Literal("ai-conversation"),
+]);
+
 export const MediaTypeSchema = Type.Union([
   Type.Literal("article"),
   Type.Literal("tweet"),
@@ -17,7 +26,7 @@ export const AuthorInfoSchema = Type.Object({
 
 export const RFC2026FrontmatterSchema = Type.Object({
   title: Type.String({ minLength: 1 }),
-  entry: Type.Literal("tachikoma"),
+  entry: EntryTypeSchema,
   media_type: MediaTypeSchema,
   source_url: Type.String({ minLength: 1 }),
   created_at: Type.String(),
@@ -29,6 +38,7 @@ export const RFC2026FrontmatterSchema = Type.Object({
 
 export const IngestionResultSchema = Type.Object({
   sourceUrl: Type.String({ minLength: 1 }),
+  entry: Type.Optional(EntryTypeSchema),
   mediaType: MediaTypeSchema,
   title: Type.String({ minLength: 1 }),
   author: AuthorInfoSchema,

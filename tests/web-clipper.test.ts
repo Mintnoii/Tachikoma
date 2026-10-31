@@ -112,7 +112,7 @@ test("Phase 3: Web Clipper Sub-App Comprehensive Tests", async (t) => {
     // 通过 @dotagents/utils 读取落盘卡片并验证 RFC-2026-0922
     const parsed = await readMarkdownFile(filePath);
     assert.equal(parsed.data.title, "攻壳机动队：分布式 Agent 演化体系重构");
-    assert.equal(parsed.data.entry, "tachikoma");
+    assert.equal(parsed.data.entry, "wechat-clipper");
     assert.equal(parsed.data.media_type, "article");
     assert.equal(parsed.data.sha256, sha256);
     assert.ok(parsed.body.includes("草薙素子少佐"));

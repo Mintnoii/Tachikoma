@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { resolve } from "pathe";
+import { pathToFileURL } from "node:url";
 import { clipUrl } from "@tachikoma/web-clipper";
 import { syncSingleAweme, syncCollections } from "@tachikoma/douyin-sync";
 import { tryit } from "radash";
@@ -67,3 +68,8 @@ program
 
     console.log(`[Tachikoma] 同步完成，本次新增摄入: ${results?.length ?? 0} 件作品。`);
   });
+
+// 直接执行入口：仅在作为 CLI 进程启动时解析参数
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await program.parseAsync(process.argv);
+}

@@ -4,7 +4,30 @@ import matter from "gray-matter";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "pathe";
 import { tryit } from "radash";
-import { IngestionResult, RFC2026Frontmatter } from "./types.js";
+import { IngestionResult, RFC2026Frontmatter, EntryType } from "./types.js";
+
+/**
+ * 根据源 URL 与媒体类型确定物理摄入渠道 entry
+ */
+export function resolveEntry(sourceUrl: string, mediaType?: string): EntryType {
+  const lowerUrl = (sourceUrl || "").toLowerCase();
+  if (lowerUrl.includes("douyin.com") || lowerUrl.includes("iesdouyin.com")) {
+    return "douyin-sync";
+  }
+  if (lowerUrl.includes("twitter.com") || lowerUrl.includes("x.com")) {
+    return "twitter-clipper";
+  }
+  if (lowerUrl.includes("mp.weixin.qq.com")) {
+    return "wechat-clipper";
+  }
+  if (mediaType === "video" || mediaType === "gallery") {
+    return "douyin-sync";
+  }
+  if (mediaType === "tweet") {
+    return "twitter-clipper";
+  }
+  return "wechat-clipper"; // 通用文章剪藏默认为 article/wechat-clipper 渠道规范
+}
 
 /**
  * 将 IngestionResult 序列化为符合 Ghost RFC-2026-0922 格式的标准 Markdown 字符串
@@ -15,14 +38,15 @@ export function formatToRFC2026Markdown(result: IngestionResult): {
   frontmatter: RFC2026Frontmatter;
 } {
   const sha256 = computeContentHash(result.content);
+  const entry = result.entry || resolveEntry(result.sourceUrl, result.mediaType);
 
   const frontmatter: RFC2026Frontmatter = {
     title: result.title,
-    entry: "tachikoma",
+    entry,
     media_type: result.mediaType,
     source_url: result.sourceUrl,
     created_at: result.createdAt,
-    tags: ["tachikoma", result.mediaType],
+    tags: [entry, result.mediaType],
     author: result.author,
     sha256,
     extra: result.metadata,

@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "pathe";
 import { tryit } from "radash";
 import { toPosixPath } from "@dotagents/utils/path.ts";
+import { loadGhostTombstones, isTombstoneIgnored } from "@tachikoma/core";
 import { DouyinAwemeItem } from "./types.js";
 
 const INIT_SQL = `
@@ -63,13 +64,26 @@ export function markSynced(
 }
 
 /**
- * 纯函数：根据对账库过滤未同步的作品列表
+ * 纯函数：根据对账库与 Ghost 墓碑账本双重过滤未同步的作品列表
  */
 export function filterUnsynced(
   db: DatabaseSync,
-  items: readonly DouyinAwemeItem[]
+  items: readonly DouyinAwemeItem[],
+  ghostVaultRoot?: string
 ): DouyinAwemeItem[] {
-  return items.filter((item) => !isSynced(db, item.id));
+  const tombstones = ghostVaultRoot ? loadGhostTombstones(ghostVaultRoot) : { urls: new Set(), ids: new Set(), titles: new Set() };
+
+  return items.filter((item) => {
+    // 1. 已在本地 SQLite 对账过，跳过
+    if (isSynced(db, item.id)) return false;
+
+    // 2. 命中 Ghost 墓碑账本（已被用户判定为广告/放弃炼化并物理删除），跳过
+    if (isTombstoneIgnored({ awemeId: item.id, url: item.shareUrl, title: item.desc }, tombstones)) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 /**
