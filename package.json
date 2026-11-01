@@ -12,6 +12,7 @@
   "dependencies": {
     "@sinclair/typebox": "^0.34.14",
     "gray-matter": "^4.0.3",
+    "jsonrepair": "^3.15.0",
     "pathe": "^2.0.3",
     "radash": "^12.1.1"
   },

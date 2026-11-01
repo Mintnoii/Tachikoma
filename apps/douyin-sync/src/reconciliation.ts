@@ -31,6 +31,8 @@ export function openReconcilerDb(dbPath: string): DatabaseSync {
   const posixPath = toPosixPath(dbPath);
   tryit(mkdirSync)(dirname(posixPath), { recursive: true });
   const db = new DatabaseSync(posixPath);
+  db.exec("PRAGMA journal_mode = WAL;");
+  db.exec("PRAGMA busy_timeout = 5000;");
   db.exec(INIT_SQL);
   return db;
 }

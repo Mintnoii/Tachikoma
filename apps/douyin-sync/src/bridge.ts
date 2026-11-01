@@ -1,4 +1,4 @@
-import { chromium, type BrowserContext, type Page } from "playwright-core";
+import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 import { sift, tryit } from "radash";
 import { toPosixPath } from "@tachikoma/core";
 
@@ -51,9 +51,11 @@ export const openBrowserBridge = (options: BrowserBridgeOptions = {}): BrowserBr
     ...options,
   };
 
+  let browser: Browser | null = null;
   let context: BrowserContext | null = null;
   let page: Page | null = null;
   let initPromise: Promise<Page> | null = null;
+  let ownBrowser = false;
 
   /**
    * 初始化浏览器上下文与同源会话页（基于 Promise 单飞防重，杜绝 busy-wait 游标循环）
@@ -69,8 +71,8 @@ export const openBrowserBridge = (options: BrowserBridgeOptions = {}): BrowserBr
 
     initPromise = (async () => {
       if (opts.cdpEndpoint) {
-        const browser = await chromium.connectOverCDP(opts.cdpEndpoint);
-        context = browser.contexts()[0] ?? (await browser.newContext());
+        const cdpBrowser = await chromium.connectOverCDP(opts.cdpEndpoint);
+        context = cdpBrowser.contexts()[0] ?? (await cdpBrowser.newContext());
       } else if (opts.profileDir) {
         const profilePath = toPosixPath(opts.profileDir);
         context = await chromium.launchPersistentContext(profilePath, {
@@ -79,9 +81,10 @@ export const openBrowserBridge = (options: BrowserBridgeOptions = {}): BrowserBr
           args: ["--disable-blink-features=AutomationControlled"],
         });
       } else {
-        const browser = await chromium.launch({
+        browser = await chromium.launch({
           headless: opts.headless ?? true,
         });
+        ownBrowser = true;
         context = await browser.newContext();
       }
 
@@ -94,9 +97,14 @@ export const openBrowserBridge = (options: BrowserBridgeOptions = {}): BrowserBr
 
       page = activePage;
       return activePage;
-    })().finally(() => {
-      initPromise = null;
-    });
+    })()
+      .catch(async (err) => {
+        await tryit(close)();
+        throw err;
+      })
+      .finally(() => {
+        initPromise = null;
+      });
 
     return initPromise;
   };
@@ -156,9 +164,14 @@ export const openBrowserBridge = (options: BrowserBridgeOptions = {}): BrowserBr
       if (context) {
         await context.close();
       }
+      if (ownBrowser && browser) {
+        await browser.close();
+      }
     })();
     page = null;
     context = null;
+    browser = null;
+    ownBrowser = false;
   };
 
   return {

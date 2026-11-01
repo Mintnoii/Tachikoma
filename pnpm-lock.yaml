@@ -14,6 +14,9 @@ importers:
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
+      jsonrepair:
+        specifier: ^3.15.0
+        version: 3.15.0
       pathe:
         specifier: ^2.0.3
         version: 2.0.3
@@ -60,6 +63,9 @@ importers:
       pathe:
         specifier: ^2.0.3
         version: 2.0.3
+      picocolors:
+        specifier: ^1.1.1
+        version: 1.1.1
       playwright-core:
         specifier: ^1.50.0
         version: 1.64.1
@@ -131,9 +137,15 @@ importers:
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
+      jsonrepair:
+        specifier: ^3.15.0
+        version: 3.15.0
       pathe:
         specifier: ^2.0.3
         version: 2.0.3
+      playwright-core:
+        specifier: ^1.50.0
+        version: 1.64.1
       radash:
         specifier: ^12.1.1
         version: 12.1.1
@@ -643,6 +655,10 @@ packages:
     peerDependenciesMeta:
       canvas:
         optional: true
+
+  jsonrepair@3.15.0:
+    resolution: {integrity: sha512-wy8OTjwsJwQRnQJkKnMJJ9vcytRdBPAgIF/Hy6+s1dAj42BHMKiyL8JzEieIl3JY7idt8eyHwBWTO8mh/+mtwA==}
+    hasBin: true
 
   kind-of@6.0.3:
     resolution: {integrity: sha512-dcS1ul+9tmeD95T+x28/ehLgd9mENa3LsvDTtzm3vyBEO7RPptvAD+t44WVXaUjTBRcrpFeFlC8WCruUR456hw==}
@@ -1283,6 +1299,8 @@ snapshots:
       - bufferutil
       - supports-color
       - utf-8-validate
+
+  jsonrepair@3.15.0: {}
 
   kind-of@6.0.3: {}
 

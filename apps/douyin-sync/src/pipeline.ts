@@ -3,7 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import { dirname, join } from "pathe";
 import { sift, tryit } from "radash";
 import { IngestionResult, persistIngestionResult, toPosixPath } from "@tachikoma/core";
-import { openBrowserBridge, closeBrowserBridge } from "./bridge.js";
+import { openBrowserBridge, closeBrowserBridge, type BrowserBridge } from "./bridge.js";
 import { fetchAwemeDetail, fetchCollectList, fetchCollectAwemes } from "./client.js";
 import { fetchPublicAwemeItem } from "./public.js";
 import { ocrGallery } from "./ocr.js";
@@ -194,22 +194,41 @@ export async function processAweme(
 }
 
 /**
- * 纯函数原子流：同步单个抖音作品（支持分享链接或 aweme_id）
+ * 协同执行作用域：统一接管 BrowserBridge 与 SQLite 对账数据库生命周期，消除裸写 try/finally
  */
-export async function syncSingleAweme(
-  urlOrId: string,
-  options: DouyinSyncOptions
-): Promise<{ filePath: string; sha256: string; result: IngestionResult }> {
+async function withSyncResources<T>(
+  options: Partial<DouyinSyncOptions>,
+  fn: (bridge: BrowserBridge, db?: DatabaseSync) => Promise<T>
+): Promise<T> {
   const dbPath = options.sqlitePath ?? options.dbPath;
   const db = dbPath ? openReconcilerDb(dbPath) : undefined;
-
   const bridge = openBrowserBridge({
     cdpEndpoint: options.cdpEndpoint,
     profileDir: options.profileDir,
     customTransport: options.customTransport,
   });
 
-  try {
+  const [execErr, result] = await tryit(fn)(bridge, db);
+
+  await tryit(closeBrowserBridge)(bridge);
+  if (db) {
+    tryit(closeReconcilerDb)(db);
+  }
+
+  if (execErr) {
+    throw execErr;
+  }
+  return result!;
+}
+
+/**
+ * 纯函数原子流：同步单个抖音作品（支持分享链接或 aweme_id）
+ */
+export async function syncSingleAweme(
+  urlOrId: string,
+  options: DouyinSyncOptions
+): Promise<{ filePath: string; sha256: string; result: IngestionResult }> {
+  return await withSyncResources(options, async (bridge, db) => {
     const match = urlOrId.match(/(?:video\/|note\/|modal_id=)(\d+)/);
     const awemeId = match?.[1] ?? urlOrId.replace(/\D/g, "");
     const aweme = await fetchAwemeDetail(bridge, awemeId || urlOrId);
@@ -227,12 +246,7 @@ export async function syncSingleAweme(
       join(options.outputDir, category, `${sanitizedTitle || "untitled"}.md`)
     );
     return { filePath: targetPath, sha256: result.sha256 ?? "", result };
-  } finally {
-    await closeBrowserBridge(bridge);
-    if (db) {
-      closeReconcilerDb(db);
-    }
-  }
+  });
 }
 
 /**
@@ -243,16 +257,7 @@ export async function syncCollections(
   collectId?: string
 ): Promise<IngestionResult[]> {
   const targetCollectId = collectId ?? options.collectId;
-  const dbPath = options.sqlitePath ?? options.dbPath;
-  const db = dbPath ? openReconcilerDb(dbPath) : undefined;
-
-  const bridge = openBrowserBridge({
-    cdpEndpoint: options.cdpEndpoint,
-    profileDir: options.profileDir,
-    customTransport: options.customTransport,
-  });
-
-  try {
+  return await withSyncResources(options, async (bridge, db) => {
     const { folders } = await fetchCollectList(bridge);
     const targetFolders = targetCollectId
       ? sift([
@@ -267,7 +272,9 @@ export async function syncCollections(
     const folderResults = await Promise.all(
       targetFolders.map(async (folder) => {
         const { items } = await fetchCollectAwemes(bridge, folder.id);
-        const unsyncedItems = db ? filterUnsynced(db, items) : items;
+        const unsyncedItems = db
+          ? filterUnsynced(db, items, options.outputDir)
+          : items;
         return Promise.all(
           unsyncedItems.map((item) =>
             processAweme(item, options, db, folder.name || undefined)
@@ -277,12 +284,7 @@ export async function syncCollections(
     );
 
     return folderResults.flat();
-  } finally {
-    await closeBrowserBridge(bridge);
-    if (db) {
-      closeReconcilerDb(db);
-    }
-  }
+  });
 }
 
 export interface FetchAwemeResult {
@@ -314,19 +316,11 @@ export async function fetchAwemeDetailWithTranscript(
 
   // 2. 若匿名提取失败或未命中，平滑降级回退至同源桥接器
   if (!aweme) {
-    const bridge = openBrowserBridge({
-      cdpEndpoint: options?.cdpEndpoint,
-      profileDir: options?.profileDir,
-      customTransport: options?.customTransport,
-    });
-
-    try {
+    aweme = await withSyncResources(options ?? {}, async (bridge) => {
       const match = urlOrId.match(/(?:video\/|note\/|modal_id=)(\d+)/);
       const awemeId = match?.[1] ?? urlOrId.replace(/\D/g, "");
-      aweme = await fetchAwemeDetail(bridge, awemeId || urlOrId);
-    } finally {
-      await closeBrowserBridge(bridge);
-    }
+      return await fetchAwemeDetail(bridge, awemeId || urlOrId);
+    });
   }
 
   let transcript: string | undefined;

@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { rm } from "node:fs/promises";
+import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "pathe";
 import {
+  resolveGhostVaultRoot,
   loadGhostTombstones,
   isTombstoneIgnored,
   TombstoneSet,
@@ -32,5 +33,64 @@ test("Tachikoma: Ghost Tombstone 对账与防重测试", async (t) => {
     // 4. 未命中正常素材
     assert.equal(isTombstoneIgnored({ url: "https://mp.weixin.qq.com/s/normal_tech_article" }, mockTombstones), false);
     assert.equal(isTombstoneIgnored({ awemeId: "99999999999" }, mockTombstones), false);
+  });
+
+  await t.test("resolveGhostVaultRoot 智能识别 Ghost/_raw 与其子路径并回溯至仓库根", () => {
+    // 1. 传入 Ghost 根目录原样返回
+    assert.equal(resolveGhostVaultRoot("C:/Workspace/Ghost"), "C:/Workspace/Ghost");
+
+    // 2. 传入 Ghost/_raw 智能回溯至 Ghost
+    assert.equal(resolveGhostVaultRoot("C:/Workspace/Ghost/_raw"), "C:/Workspace/Ghost");
+
+    // 3. 传入 Ghost/_raw/douyin/AI存档 等深层子路径
+    assert.equal(
+      resolveGhostVaultRoot("C:/Workspace/Ghost/_raw/douyin/AI存档"),
+      "C:/Workspace/Ghost"
+    );
+    assert.equal(
+      resolveGhostVaultRoot("C:/Workspace/Ghost/_raw/articles"),
+      "C:/Workspace/Ghost"
+    );
+
+    // 4. 相对路径兼容性
+    assert.equal(resolveGhostVaultRoot("Ghost/_raw"), "Ghost");
+    assert.equal(resolveGhostVaultRoot("_raw"), ".");
+    assert.equal(resolveGhostVaultRoot("_raw/douyin"), ".");
+  });
+
+  await t.test("loadGhostTombstones 从传入的 Ghost/_raw 子目录自动穿透加载 .cache/ignored.json", () => {
+    const sandboxDir = join(process.cwd(), "tests", "sandbox", "tombstone-resolve-test");
+    const ghostRoot = join(sandboxDir, "Ghost");
+    const cacheDir = join(ghostRoot, ".cache");
+    const rawDouyinDir = join(ghostRoot, "_raw", "douyin", "AI存档");
+
+    try {
+      mkdirSync(cacheDir, { recursive: true });
+      mkdirSync(rawDouyinDir, { recursive: true });
+
+      const mockRecords = [
+        {
+          identifier: "tomb_1001",
+          awemeId: "7310000000001",
+          sourceUrl: "https://www.douyin.com/video/7310000000001",
+          title: "低质营销号合集",
+          entry: "douyin",
+          reason: "无价值广告",
+          ignoredAt: new Date().toISOString(),
+        },
+      ];
+
+      writeFileSync(join(cacheDir, "ignored.json"), JSON.stringify(mockRecords), "utf-8");
+
+      // 从 _raw 深层子目录加载墓碑
+      const tombstones = loadGhostTombstones(rawDouyinDir);
+      assert.ok(tombstones.ids.has("7310000000001"));
+      assert.ok(tombstones.titles.has("低质营销号合集"));
+      assert.ok(
+        isTombstoneIgnored({ awemeId: "7310000000001" }, tombstones)
+      );
+    } finally {
+      rmSync(sandboxDir, { recursive: true, force: true });
+    }
   });
 });

@@ -260,6 +260,33 @@ test("Tachikoma Tactical Sparks: Pipeline, CLI & Ghost Promotion Comprehensive T
       assert.ok(result.tags.every((t) => t.startsWith("#")));
     });
 
+    await t.test("distillWithLLM leverages jsonrepair to heal non-standard / trailing-comma / single-quoted JSON", async () => {
+      const mockDirtyJsonFetch: typeof fetch = async () => {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            choices: [
+              {
+                message: {
+                  content: "{ 'title': '非标JSON自愈测试', 'type': 'tool', 'cluster': 'arsenal', 'tags': ['#自愈', '#工具',], }",
+                },
+              },
+            ],
+          }),
+        } as unknown as Response;
+      };
+
+      const result = await distillWithLLM("测试输入", {
+        customFetcher: mockDirtyJsonFetch,
+      });
+
+      assert.equal(result.title, "非标JSON自愈测试");
+      assert.equal(result.type, "tool");
+      assert.equal(result.cluster, "arsenal");
+      assert.deepEqual(result.tags, ["#自愈", "#工具"]);
+    });
+
     await t.test("distillWithLLM throws descriptive error on network failure", async () => {
       const mockFailFetch: typeof fetch = async () => {
         throw new Error("Connection refused");

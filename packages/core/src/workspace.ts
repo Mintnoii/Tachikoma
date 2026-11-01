@@ -24,19 +24,16 @@ export function resolveWorkspaceRoot(startDir: string = process.cwd()): string {
     return resolve(process.env.TACHIKOMA_HOME);
   }
 
-  let current = resolve(startDir);
-  while (true) {
-    if (existsSync(resolve(current, "pnpm-workspace.yaml"))) {
-      return current;
-    }
-    const parent = dirname(current);
-    if (parent === current) {
-      break;
-    }
-    current = parent;
-  }
+  const normalized = resolve(startDir).replace(/\\/g, "/");
+  const ancestors = normalized
+    .split("/")
+    .map((_, idx, arr) => arr.slice(0, arr.length - idx).join("/") || "/")
+    .filter((p, i, a) => a.indexOf(p) === i);
 
-  return resolve(homedir(), ".tachikoma");
+  return (
+    ancestors.find((p) => existsSync(resolve(p, "pnpm-workspace.yaml"))) ??
+    resolve(homedir(), ".tachikoma")
+  );
 }
 
 /**

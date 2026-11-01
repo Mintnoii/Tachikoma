@@ -269,13 +269,11 @@ export function fallbackDistillText(
 ): DistilledTextResult {
   const trimmed = content.trim();
 
-  // 1. 提取文案中的 #标签
-  const inTextTags: string[] = [];
-  const hashtagRegex = /#([\p{L}\p{N}_-]+)/gu;
-  let match: RegExpExecArray | null;
-  while ((match = hashtagRegex.exec(trimmed)) !== null) {
-    inTextTags.push(`#${match[1]}`);
-  }
+  // 1. 提取文案中的 #标签 (纯函数声明式抽取，消灭 while exec 游标)
+  const inTextTags = Array.from(
+    trimmed.matchAll(/#([\p{L}\p{N}_-]+)/gu),
+    (m) => `#${m[1]}`
+  );
 
   // 2. 启发式自动分类判定
   let type: SparkType = opts?.userType ?? "fleeting";

@@ -1,7 +1,14 @@
-import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
-import { sift, tryit } from "radash";
+import { tryit } from "radash";
+import {
+  withBrowserPage,
+  extractDouyinUrlOrId,
+  type DouyinUrlOrId,
+  safeJsonParse,
+} from "@tachikoma/core";
 import { normalizeAweme } from "./client.js";
 import { DouyinAwemeItem } from "./types.js";
+
+export { extractDouyinUrlOrId, type DouyinUrlOrId };
 
 export interface PublicAwemeOptions {
   timeoutMs?: number;
@@ -9,33 +16,6 @@ export interface PublicAwemeOptions {
   cdpEndpoint?: string;
   customExtractor?: (urlOrId: string) => Promise<DouyinAwemeItem>;
   customTransport?: (path: string, params?: Record<string, unknown>) => Promise<any>;
-}
-
-const IPHONE_USER_AGENT =
-  "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1";
-
-/**
- * 纯函数：从任意输入文本提取抖音作品 URL 或 aweme_id
- */
-export function extractDouyinUrlOrId(input: string): { url?: string; awemeId?: string } {
-  const trimmed = input.trim();
-  const urlMatch = trimmed.match(/https?:\/\/[^\s]+/i);
-  if (urlMatch) {
-    const rawUrl = urlMatch[0];
-    const idMatch = rawUrl.match(/(?:video\/|note\/|modal_id=)(\d+)/);
-    return {
-      url: rawUrl,
-      awemeId: idMatch?.[1],
-    };
-  }
-
-  const digitsMatch = trimmed.match(/\d{15,22}/);
-  if (digitsMatch) {
-    return { awemeId: digitsMatch[0] };
-  }
-
-  const numericOnly = trimmed.replace(/\D/g, "");
-  return { awemeId: numericOnly || undefined };
 }
 
 /**
@@ -68,35 +48,8 @@ export async function fetchPublicAwemeItem(
       ? `https://www.iesdouyin.com/share/video/${extracted.awemeId}`
       : urlOrId);
 
-  let browser: Browser | null = null;
-  let context: BrowserContext | null = null;
-  let page: Page | null = null;
-  let interceptedData: any = null;
-
-  try {
-    if (options?.cdpEndpoint) {
-      browser = await chromium.connectOverCDP(options.cdpEndpoint);
-      context = browser.contexts()[0] ?? (await browser.newContext());
-    } else {
-      browser = await chromium.launch({
-        headless: options?.headless ?? true,
-        args: [
-          "--no-startup-window",
-          "--disable-gpu",
-          "--disable-dev-shm-usage",
-          "--disable-blink-features=AutomationControlled",
-        ],
-      });
-      // 纯内存无痕隔离上下文：零 Cookie、零持久化 Profile
-      context = await browser.newContext({
-        userAgent: IPHONE_USER_AGENT,
-        viewport: { width: 390, height: 844 },
-        isMobile: true,
-        hasTouch: true,
-      });
-    }
-
-    page = await context.newPage();
+  return await withBrowserPage({ ...options, isMobile: true }, async (page) => {
+    let interceptedData: any = null;
 
     // 监听网络请求中的作品详情 JSON（优先捕获官方接口流）
     page.on("response", async (response) => {
@@ -122,42 +75,36 @@ export async function fetchPublicAwemeItem(
       timeout,
     });
 
-    // 若网络拦截未直接命中，从页面执行环境或 DOM 中提取
+    // 若网络拦截未直接命中，从页面执行环境或 DOM 中声明式提取
     const inPageData = await page.evaluate(() => {
-      // 1. 检查 window._ROUTER_DATA
-      const routerData = (window as any)._ROUTER_DATA;
-      if (routerData?.loaderData) {
-        const ld = routerData.loaderData;
-        for (const k of Object.keys(ld)) {
-          const candidate =
-            ld[k]?.videoInfoRes?.item_list?.[0] ??
-            ld[k]?.aweme_detail ??
-            ld[k]?.itemInfo?.itemStruct;
-          if (candidate) return candidate;
-        }
-      }
+      const findCandidate = (dict: unknown) => {
+        if (!dict || typeof dict !== "object") return null;
+        return (
+          Object.values(dict)
+            .map(
+              (v: any) =>
+                v?.videoInfoRes?.item_list?.[0] ??
+                v?.aweme_detail ??
+                v?.itemInfo?.itemStruct
+            )
+            .find(Boolean) ?? null
+        );
+      };
 
-      // 2. 检查 <script id="RENDER_DATA">
-      const renderEl = document.querySelector("#RENDER_DATA");
-      if (renderEl?.textContent) {
-        try {
-          const decoded = decodeURIComponent(renderEl.textContent);
-          const parsed = JSON.parse(decoded);
-          for (const k of Object.keys(parsed)) {
-            const candidate =
-              parsed[k]?.videoInfoRes?.item_list?.[0] ??
-              parsed[k]?.aweme_detail;
-            if (candidate) return candidate;
-          }
-        } catch {}
-      }
+      // 1. window._ROUTER_DATA
+      const routerCandidate = findCandidate(
+        (window as any)._ROUTER_DATA?.loaderData
+      );
+      if (routerCandidate) return { candidate: routerCandidate };
 
-      // 3. 检查 window.__INITIAL_STATE__
+      // 2. window.__INITIAL_STATE__
       const initState = (window as any).__INITIAL_STATE__;
-      if (initState) {
-        const candidate = initState.aweme?.detail ?? initState.itemInfo?.itemStruct;
-        if (candidate) return candidate;
-      }
+      const initCandidate =
+        initState?.aweme?.detail ?? initState?.itemInfo?.itemStruct ?? null;
+      if (initCandidate) return { candidate: initCandidate };
+
+      // 3. <script id="RENDER_DATA">
+      const renderText = document.querySelector("#RENDER_DATA")?.textContent?.trim() || null;
 
       // 4. DOM 启发式回退提取
       const desc =
@@ -190,12 +137,18 @@ export async function fetchPublicAwemeItem(
       const videoEl = document.querySelector("video") as HTMLVideoElement | null;
       const videoPlayUrl = videoEl?.src || videoEl?.querySelector("source")?.src;
 
-      return {
+      const domFallback = {
         desc: desc.trim(),
         author: { nickname: authorNickname.trim(), sec_uid: authorSecUid },
         images: images.map((url) => ({ url_list: [url] })),
         video: videoPlayUrl ? { play_addr: { url_list: [videoPlayUrl] } } : undefined,
         aweme_type: images.length > 0 ? 68 : 4,
+      };
+
+      return {
+        candidate: null,
+        renderText,
+        domFallback,
       };
     });
 
@@ -203,7 +156,28 @@ export async function fetchPublicAwemeItem(
     const finalIdMatch = finalUrl.match(/(?:video\/|note\/|modal_id=)(\d+)/);
     const resolvedId = finalIdMatch?.[1] ?? extracted.awemeId ?? "";
 
-    const raw = interceptedData ?? inPageData;
+    const inPageCandidate =
+      inPageData.candidate ??
+      (() => {
+        if (inPageData.renderText) {
+          const [decodeErr, decoded] = tryit(decodeURIComponent)(inPageData.renderText);
+          if (!decodeErr && decoded) {
+            const parsed = safeJsonParse<Record<string, any>>(decoded, {});
+            return (
+              Object.values(parsed)
+                .map(
+                  (val: any) =>
+                    val?.videoInfoRes?.item_list?.[0] ?? val?.aweme_detail
+                )
+                .find(Boolean) ?? null
+            );
+          }
+        }
+        return null;
+      })() ??
+      inPageData.domFallback;
+
+    const raw = interceptedData ?? inPageCandidate;
     if (!raw) {
       throw new Error(`[PublicAweme] 无法从作品页面提取数据: ${urlOrId}`);
     }
@@ -213,11 +187,5 @@ export async function fetchPublicAwemeItem(
     }
 
     return normalizeAweme(raw);
-  } finally {
-    if (page) await tryit(page.close.bind(page))();
-    if (context) await tryit(context.close.bind(context))();
-    if (browser && !options?.cdpEndpoint) {
-      await tryit(browser.close.bind(browser))();
-    }
-  }
+  });
 }

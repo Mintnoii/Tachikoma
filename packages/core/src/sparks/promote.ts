@@ -1,4 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
+import { sift } from "radash";
 import { SparkRecord, IngestionResult, MediaType, EntryType } from "../types.js";
 import { getSparkById, updateSpark } from "../db/sparks.js";
 import { formatToRFC2026Markdown, persistIngestionResult } from "../formatter.js";
@@ -36,21 +37,13 @@ export function sparkToIngestionResult(spark: SparkRecord): IngestionResult {
   const entry: EntryType = isTool ? "manual-research" : "manual-notes";
   const mediaType: MediaType = isMeme ? "gallery" : isTweet ? "tweet" : "article";
 
-  // 构建优雅的 Markdown 正文
-  const contentParts: string[] = [];
-  contentParts.push(spark.content);
-
-  if (spark.assetPath) {
-    contentParts.push(`\n![${spark.title}](${spark.assetPath})`);
-  }
-
-  if (spark.sourceUrl) {
-    contentParts.push(`\n> 来源: [${spark.sourceUrl}](${spark.sourceUrl})`);
-  }
-
-  if (spark.tags && spark.tags.length > 0) {
-    contentParts.push(`\n**标签**: ${spark.tags.join(" ")}`);
-  }
+  // 构建优雅声明式 Markdown 正文
+  const content = sift([
+    spark.content,
+    spark.assetPath && `![${spark.title}](${spark.assetPath})`,
+    spark.sourceUrl && `> 来源: [${spark.sourceUrl}](${spark.sourceUrl})`,
+    spark.tags?.length && `**标签**: ${spark.tags.join(" ")}`,
+  ]).join("\n\n");
 
   return {
     sourceUrl: spark.sourceUrl || `spark://${spark.id}`,
@@ -61,7 +54,7 @@ export function sparkToIngestionResult(spark: SparkRecord): IngestionResult {
       name: "Tachikoma Sparks",
       url: "https://github.com/dotagents/tachikoma",
     },
-    content: contentParts.join("\n\n"),
+    content,
     rawAssets: spark.assetPath ? [spark.assetPath] : undefined,
     metadata: {
       spark_id: spark.id,

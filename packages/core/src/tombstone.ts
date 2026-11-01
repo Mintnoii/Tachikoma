@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "pathe";
-import { tryit } from "radash";
+import { dirname, join } from "pathe";
+import { sift, tryit } from "radash";
+import { toPosixPath } from "./utils/path.js";
+import { safeJsonParse } from "./utils/json.js";
 
 export interface TombstoneRecord {
   readonly identifier: string;
@@ -31,10 +33,40 @@ export function cleanUrl(rawUrl?: string): string | null {
 }
 
 /**
+ * 智能解析 Ghost 仓库根目录：无论是传入 Ghost 根目录、Ghost/_raw 还是其深层子目录，
+ * 均能自动回溯并锚定至 Ghost 仓库根路径
+ */
+export function resolveGhostVaultRoot(rawPath: string): string {
+  if (!rawPath) return "";
+  const normalized = toPosixPath(rawPath).replace(/\/+$/, "");
+
+  // 1. 若路径中包含 _raw，则其父目录必定为仓库根
+  const rawIdx = normalized.indexOf("/_raw");
+  if (rawIdx !== -1) {
+    return normalized.slice(0, rawIdx) || "/";
+  }
+  if (normalized === "_raw" || normalized.startsWith("_raw/")) {
+    return ".";
+  }
+
+  // 2. 原生祖先路径探测：直接寻找首个挂载 .cache/ignored.json 的父级
+  const ancestors = normalized
+    .split("/")
+    .map((_, idx, arr) => arr.slice(0, arr.length - idx).join("/") || "/")
+    .filter((p, i, a) => a.indexOf(p) === i);
+
+  return (
+    ancestors.find((p) => existsSync(join(p, ".cache/ignored.json"))) ??
+    normalized
+  );
+}
+
+/**
  * 从 Ghost 知识库加载墓碑账本索引
  */
 export function loadGhostTombstones(ghostVaultRoot: string): TombstoneSet {
-  const filePath = join(ghostVaultRoot, ".cache", "ignored.json");
+  const resolvedRoot = resolveGhostVaultRoot(ghostVaultRoot);
+  const filePath = join(resolvedRoot, ".cache", "ignored.json");
   if (!existsSync(filePath)) {
     return { urls: new Set(), ids: new Set(), titles: new Set() };
   }
@@ -44,27 +76,32 @@ export function loadGhostTombstones(ghostVaultRoot: string): TombstoneSet {
     return { urls: new Set(), ids: new Set(), titles: new Set() };
   }
 
-  const [parseErr, records] = tryit((raw: string) => JSON.parse(raw) as unknown[])(
-    String(content)
-  ) as [Error | undefined, unknown[] | undefined];
-  if (parseErr || !Array.isArray(records)) {
+  const records = safeJsonParse<TombstoneRecord[]>(String(content), []);
+  if (records.length === 0) {
     return { urls: new Set(), ids: new Set(), titles: new Set() };
   }
 
-  const urls = new Set<string>();
-  const ids = new Set<string>();
-  const titles = new Set<string>();
+  const urls = new Set<string>(
+    sift(
+      records.flatMap((r) => [
+        r.sourceUrl?.trim(),
+        cleanUrl(r.sourceUrl),
+      ])
+    )
+  );
 
-  for (const r of records as TombstoneRecord[]) {
-    if (r.sourceUrl) {
-      urls.add(r.sourceUrl.trim());
-      const cleaned = cleanUrl(r.sourceUrl);
-      if (cleaned) urls.add(cleaned);
-    }
-    if (r.awemeId) ids.add(String(r.awemeId).trim());
-    if (r.identifier) ids.add(String(r.identifier).trim());
-    if (r.title) titles.add(r.title.trim().toLowerCase());
-  }
+  const ids = new Set<string>(
+    sift(
+      records.flatMap((r) => [
+        r.awemeId ? String(r.awemeId).trim() : null,
+        r.identifier ? String(r.identifier).trim() : null,
+      ])
+    )
+  );
+
+  const titles = new Set<string>(
+    sift(records.map((r) => (r.title ? r.title.trim().toLowerCase() : null)))
+  );
 
   return { urls, ids, titles };
 }

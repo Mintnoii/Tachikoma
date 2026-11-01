@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { dirname, normalize } from "pathe";
 import { tryit, unique, group, sift } from "radash";
+import { safeJsonParse } from "../utils/json.js";
 import {
   SparkRecord,
   SparkType,
@@ -123,10 +124,7 @@ export const INIT_SPARKS_SCHEMA_SQL = `
  * 纯函数：将 SQLite 原始数据行转换为强契约 SparkRecord
  */
 export function rowToSparkRecord(row: SparkRow): SparkRecord {
-  const [parseErr, parsedTags] = tryit((raw: string) => JSON.parse(raw) as string[])(
-    row.tags
-  ) as [Error | undefined, string[] | undefined];
-  const tags: string[] = !parseErr && Array.isArray(parsedTags) ? parsedTags : [];
+  const tags = safeJsonParse<string[]>(row.tags, []);
 
   return {
     id: row.id,
@@ -157,6 +155,8 @@ export function openSparksDb(dbPath: string = ":memory:"): DatabaseSync {
     db = new DatabaseSync(normalizedPath);
   }
 
+  db.exec("PRAGMA journal_mode = WAL;");
+  db.exec("PRAGMA busy_timeout = 5000;");
   db.exec(INIT_SPARKS_SCHEMA_SQL);
   return db;
 }
@@ -317,34 +317,23 @@ export function incrementSparkAccess(db: DatabaseSync, id: string): SparkRecord 
  * 多维组合查询战术灵感列表
  */
 export function querySparks(db: DatabaseSync, filter?: SparksQueryFilter): SparkRecord[] {
-  const conditions: string[] = [];
-  const params: unknown[] = [];
+  // 声明式条件生成（消灭交替 push 状态机）
+  const clauseSpecs: Array<[string, unknown] | null> = [
+    filter?.type ? ["type = ?", filter.type] : null,
+    filter?.status ? ["status = ?", filter.status] : null,
+    filter?.cluster !== undefined
+      ? filter.cluster === null
+        ? ["(cluster IS NULL OR cluster = '')", undefined]
+        : ["cluster = ?", filter.cluster]
+      : null,
+    filter?.tag
+      ? ["EXISTS (SELECT 1 FROM json_each(sparks.tags) WHERE json_each.value = ?)", filter.tag]
+      : null,
+  ];
 
-  if (filter?.type) {
-    conditions.push("type = ?");
-    params.push(filter.type);
-  }
-
-  if (filter?.status) {
-    conditions.push("status = ?");
-    params.push(filter.status);
-  }
-
-  if (filter?.cluster !== undefined) {
-    if (filter.cluster === null) {
-      conditions.push("(cluster IS NULL OR cluster = '')");
-    } else {
-      conditions.push("cluster = ?");
-      params.push(filter.cluster);
-    }
-  }
-
-  if (filter?.tag) {
-    conditions.push("EXISTS (SELECT 1 FROM json_each(sparks.tags) WHERE json_each.value = ?)");
-    params.push(filter.tag);
-  }
-
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const activeSpecs = sift(clauseSpecs);
+  const whereClause = activeSpecs.length > 0 ? `WHERE ${activeSpecs.map(([sql]) => sql).join(" AND ")}` : "";
+  const filterParams = sift(activeSpecs.map(([, param]) => param));
 
   const allowedSortColumns: Record<string, string> = {
     created_at: "created_at",
@@ -354,20 +343,20 @@ export function querySparks(db: DatabaseSync, filter?: SparksQueryFilter): Spark
   const sortColumn = allowedSortColumns[filter?.sortBy ?? "created_at"] ?? "created_at";
   const sortOrder = (filter?.sortOrder ?? "desc").toLowerCase() === "asc" ? "ASC" : "DESC";
 
-  let sql = `SELECT * FROM sparks ${whereClause} ORDER BY ${sortColumn} ${sortOrder}`;
-
+  const paginationParams: number[] = [];
+  let paginationSql = "";
   if (filter?.limit !== undefined && filter.limit > 0) {
-    sql += " LIMIT ?";
-    params.push(filter.limit);
+    paginationSql += " LIMIT ?";
+    paginationParams.push(filter.limit);
   }
-
   if (filter?.offset !== undefined && filter.offset > 0) {
-    sql += " OFFSET ?";
-    params.push(filter.offset);
+    paginationSql += " OFFSET ?";
+    paginationParams.push(filter.offset);
   }
 
+  const sql = `SELECT * FROM sparks ${whereClause} ORDER BY ${sortColumn} ${sortOrder}${paginationSql}`;
   const stmt = db.prepare(sql);
-  const rows = stmt.all(...(params as any[])) as unknown as SparkRow[];
+  const rows = stmt.all(...(filterParams as any[]), ...paginationParams) as unknown as SparkRow[];
   return rows.map(rowToSparkRecord);
 }
 
@@ -440,22 +429,7 @@ export function ftsSearch(
   const validLikeRows = !likeErr && likeRows ? likeRows : [];
 
   // 3. 结果合并去重：FTS5 高相关性记录优先，随后补充 LIKE 命中的记录
-  const seenIds = new Set<string>();
-  const mergedRows: SparkRow[] = [];
-
-  for (const row of validFtsRows) {
-    if (!seenIds.has(row.id)) {
-      seenIds.add(row.id);
-      mergedRows.push(row);
-    }
-  }
-
-  for (const row of validLikeRows) {
-    if (!seenIds.has(row.id)) {
-      seenIds.add(row.id);
-      mergedRows.push(row);
-    }
-  }
+  const mergedRows = unique([...validFtsRows, ...validLikeRows], (row) => row.id);
 
   // 4. 处理 limit
   const finalRows =

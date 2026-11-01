@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { resolve } from "pathe";
-import { tryit, unique, sift } from "radash";
+import pc from "picocolors";
+import { tryit, unique, sift, shake } from "radash";
 import {
   openSparksDb,
   closeSparksDb,
@@ -16,19 +17,37 @@ import {
   promoteSparkToGhost,
   distillText,
   getTachikomaWorkspacePaths,
+  type SparkRecord,
   SparkType,
   SparkStatus,
 } from "@tachikoma/core";
+
+function reportSparksError(msg: string): void {
+  console.error(pc.red(`[Tachikoma Sparks] ${msg}`));
+  process.exitCode = 1;
+}
+
+function formatSparkDetails(record: Partial<SparkRecord>, statusSuffix = ""): string {
+  return sift([
+    record.type && `  类型:   [${record.type}]`,
+    record.status && `  状态:   ${record.status}${statusSuffix}`,
+    record.title && `  标题:   ${record.title}`,
+    record.cluster && `  领域:   [${formatClusterLabel(record.cluster)}]`,
+    record.tags?.length && `  标签:   ${record.tags.join(" ")}`,
+    record.sourceUrl && `  来源:   ${record.sourceUrl}`,
+    record.assetPath && `  资产:   ${record.assetPath}`,
+  ]).join("\n");
+}
 
 /**
  * 格式化解析标签参数（支持空格分隔数组或逗号分隔字符串，自动补齐 # 前缀）
  */
 export function parseTagsInput(rawTags?: string[] | string): string[] {
   if (!rawTags) return [];
-  const list = Array.isArray(rawTags) ? rawTags : [rawTags];
-  const tokens = list.flatMap((t) => t.split(/[,，\s]+/));
-  const cleaned = sift(tokens.map((t) => t.trim()));
-  const normalized = cleaned.map((t) => (t.startsWith("#") ? t : `#${t}`));
+  const tokens = [rawTags].flat().flatMap((t) => t.split(/[,，\s]+/));
+  const normalized = sift(tokens.map((t) => t.trim())).map((t) =>
+    t.startsWith("#") ? t : `#${t}`
+  );
   return unique(normalized);
 }
 
@@ -127,9 +146,7 @@ export function registerSparkCommands(program: Command): Command {
         closeSparksDb(db);
 
         if (err || !record) {
-          console.error(`[Tachikoma Sparks] 录入失败: ${err?.message ?? "未知错误"}`);
-          process.exitCode = 1;
-          return;
+          return reportSparksError(`录入失败: ${err?.message ?? "未知错误"}`);
         }
 
         if (options.json) {
@@ -137,22 +154,8 @@ export function registerSparkCommands(program: Command): Command {
           return;
         }
 
-        console.log(`⚡ [Tachikoma Sparks] 灵感已入库 [${record.id}]`);
-        console.log(`  类型:   [${record.type}]`);
-        console.log(`  状态:   ${record.status} (种子态)`);
-        console.log(`  标题:   ${record.title}`);
-        if (record.cluster) {
-          console.log(`  领域:   [${formatClusterLabel(record.cluster)}]`);
-        }
-        if (record.tags.length > 0) {
-          console.log(`  标签:   ${record.tags.join(" ")}`);
-        }
-        if (record.sourceUrl) {
-          console.log(`  来源:   ${record.sourceUrl}`);
-        }
-        if (record.assetPath) {
-          console.log(`  资产:   ${record.assetPath}`);
-        }
+        console.log(pc.green(`⚡ [Tachikoma Sparks] 灵感已入库 [${record.id}]`));
+        console.log(formatSparkDetails(record, " (种子态)"));
       }
     );
 
@@ -197,9 +200,7 @@ export function registerSparkCommands(program: Command): Command {
         closeSparksDb(db);
 
         if (err || !records) {
-          console.error(`[Tachikoma Sparks] 查询失败: ${err?.message ?? "未知错误"}`);
-          process.exitCode = 1;
-          return;
+          return reportSparksError(`查询失败: ${err?.message ?? "未知错误"}`);
         }
 
         if (options.json) {
@@ -208,23 +209,26 @@ export function registerSparkCommands(program: Command): Command {
         }
 
         if (records.length === 0) {
-          console.log("[Tachikoma Sparks] 暂无符合条件的灵感记录。");
+          console.log(pc.dim("[Tachikoma Sparks] 暂无符合条件的灵感记录。"));
           return;
         }
 
         console.log(`✨ Tachikoma 战术灵感军械库 (共 ${records.length} 条记录):`);
-        console.log("─".repeat(70));
-        for (const item of records) {
-          const tagsStr = item.tags.join(" ");
-          const clusterStr = item.cluster ? ` [${formatClusterLabel(item.cluster)}]` : "";
-          console.log(
-            `• [${item.id.slice(0, 8)}] [${item.type}] [${item.status}] ${item.title}${clusterStr}`
-          );
-          if (tagsStr) {
-            console.log(`  ${tagsStr}`);
-          }
-        }
-        console.log("─".repeat(70));
+        console.log(pc.dim("─".repeat(70)));
+        const rendered = records
+          .map((item) => {
+            const clusterStr = item.cluster ? ` [${formatClusterLabel(item.cluster)}]` : "";
+            const lines = [
+              `• [${item.id.slice(0, 8)}] [${item.type}] [${item.status}] ${item.title}${clusterStr}`,
+            ];
+            if (item.tags.length > 0) {
+              lines.push(`  ${item.tags.join(" ")}`);
+            }
+            return lines.join("\n");
+          })
+          .join("\n");
+        console.log(rendered);
+        console.log(pc.dim("─".repeat(70)));
       }
     );
 
@@ -260,9 +264,7 @@ export function registerSparkCommands(program: Command): Command {
         closeSparksDb(db);
 
         if (err || !hits) {
-          console.error(`[Tachikoma Sparks] 检索失败: ${err?.message ?? "未知错误"}`);
-          process.exitCode = 1;
-          return;
+          return reportSparksError(`检索失败: ${err?.message ?? "未知错误"}`);
         }
 
         if (options.json) {
@@ -271,21 +273,27 @@ export function registerSparkCommands(program: Command): Command {
         }
 
         if (hits.length === 0) {
-          console.log(`[Tachikoma Sparks] 未检索到与 "${query}" 匹配的灵感。`);
+          console.log(pc.dim(`[Tachikoma Sparks] 未检索到与 "${query}" 匹配的灵感。`));
           return;
         }
 
         console.log(`🔍 检索命中 "${query}" (共 ${hits.length} 条):`);
-        console.log("─".repeat(70));
-        for (const item of hits) {
-          console.log(`• [${item.id.slice(0, 8)}] [${item.type}] ${item.title}`);
-          const preview = item.content.slice(0, 60).replace(/\n/g, " ");
-          console.log(`  摘要: ${preview}${item.content.length > 60 ? "..." : ""}`);
-          if (item.tags.length > 0) {
-            console.log(`  标签: ${item.tags.join(" ")}`);
-          }
-        }
-        console.log("─".repeat(70));
+        console.log(pc.dim("─".repeat(70)));
+        const rendered = hits
+          .map((item) => {
+            const preview = item.content.slice(0, 60).replace(/\n/g, " ");
+            const lines = [
+              `• [${item.id.slice(0, 8)}] [${item.type}] ${item.title}`,
+              `  摘要: ${preview}${item.content.length > 60 ? "..." : ""}`,
+            ];
+            if (item.tags.length > 0) {
+              lines.push(`  标签: ${item.tags.join(" ")}`);
+            }
+            return lines.join("\n");
+          })
+          .join("\n");
+        console.log(rendered);
+        console.log(pc.dim("─".repeat(70)));
       }
     );
 
@@ -316,38 +324,45 @@ export function registerSparkCommands(program: Command): Command {
     }
 
     console.log("🌌 [Tachikoma Sparks] 微主题簇与自然生长看板");
-    console.log("─".repeat(70));
+    console.log(pc.dim("─".repeat(70)));
 
     // 已成型微主题簇
     console.log("📦 已归纳微主题簇 (Clusters):");
     if (data.clusters.length === 0) {
-      console.log("  (暂无已命名主题簇，可在录入时指定 --cluster 或等待标签涌现)");
+      console.log(pc.dim("  (暂无已命名主题簇，可在录入时指定 --cluster 或等待标签涌现)"));
     } else {
-      for (const c of data.clusters) {
-        console.log(`  • [${formatClusterLabel(c.cluster)}] (${c.count} 条)`);
-      }
+      console.log(
+        data.clusters
+          .map((c) => `  • [${formatClusterLabel(c.cluster)}] (${c.count} 条)`)
+          .join("\n")
+      );
     }
 
     // 高频标签 TOP
     console.log("\n🏷️ 高频标签 TOP 10:");
     if (data.tags.length === 0) {
-      console.log("  (暂无标签数据)");
+      console.log(pc.dim("  (暂无标签数据)"));
     } else {
-      for (const t of data.tags.slice(0, 10)) {
-        console.log(`  • ${t.tag} (${t.count} 次)`);
-      }
+      console.log(
+        data.tags
+          .slice(0, 10)
+          .map((t) => `  • ${t.tag} (${t.count} 次)`)
+          .join("\n")
+      );
     }
 
     // 正在涌现的微主题簇
     console.log(`\n🌱 正在自然涌现的微主题簇 (同标签条目 >= ${thresholdNum}):`);
     if (data.emerging.length === 0) {
-      console.log("  (当前尚无高频标签达到涌现阈值)");
+      console.log(pc.dim("  (当前尚无高频标签达到涌现阈值)"));
     } else {
-      for (const e of data.emerging) {
-        console.log(`  • ${e.tag} (包含 ${e.count} 条记录，建议凝聚为微主题簇)`);
-      }
+      console.log(
+        data.emerging
+          .map((e) => `  • ${e.tag} (包含 ${e.count} 条记录，建议凝聚为微主题簇)`)
+          .join("\n")
+      );
     }
-    console.log("─".repeat(70));
+    console.log(pc.dim("─".repeat(70)));
   };
 
   spark
@@ -380,11 +395,9 @@ export function registerSparkCommands(program: Command): Command {
       ) => {
         const allowedStatuses: SparkStatus[] = ["seed", "growing", "evergreen"];
         if (!allowedStatuses.includes(newStatus as SparkStatus)) {
-          console.error(
-            `[Tachikoma Sparks] 非法状态: "${newStatus}". 合法状态为: ${allowedStatuses.join(", ")}`
+          return reportSparksError(
+            `非法状态: "${newStatus}". 合法状态为: ${allowedStatuses.join(", ")}`
           );
-          process.exitCode = 1;
-          return;
         }
 
         const dbPath = resolveDbPath(options.db);
@@ -396,9 +409,7 @@ export function registerSparkCommands(program: Command): Command {
         closeSparksDb(db);
 
         if (err || !updated) {
-          console.error(`[Tachikoma Sparks] 状态流转失败: 未找到 ID 为 "${id}" 的灵感。`);
-          process.exitCode = 1;
-          return;
+          return reportSparksError(`状态流转失败: 未找到 ID 为 "${id}" 的灵感。`);
         }
 
         if (options.json) {
@@ -451,31 +462,20 @@ export function registerSparkCommands(program: Command): Command {
         const dbPath = resolveDbPath(options.db);
         const db = openSparksDb(dbPath);
 
-        const updates: {
-          title?: string;
-          content?: string;
-          tags?: string[];
-          type?: SparkType;
-          cluster?: string;
-          status?: SparkStatus;
-        } = {};
-
-        if (options.title !== undefined) updates.title = options.title;
-        if (options.content !== undefined) updates.content = options.content;
-        if (options.tags !== undefined) updates.tags = parseTagsInput(options.tags);
-        if (options.type !== undefined) updates.type = options.type as SparkType;
-        if (options.cluster !== undefined) updates.cluster = options.cluster;
-        if (options.status !== undefined) updates.status = options.status as SparkStatus;
+        const updates = shake({
+          title: options.title,
+          content: options.content,
+          tags: options.tags !== undefined ? parseTagsInput(options.tags) : undefined,
+          type: options.type as SparkType | undefined,
+          cluster: options.cluster,
+          status: options.status as SparkStatus | undefined,
+        });
 
         const [err, updated] = tryit(updateSpark)(db, id, updates);
         closeSparksDb(db);
 
         if (err || !updated) {
-          console.error(
-            `[Tachikoma Sparks] 更新灵感失败: 未找到 ID 为 "${id}" 的灵感。`
-          );
-          process.exitCode = 1;
-          return;
+          return reportSparksError(`更新灵感失败: 未找到 ID 为 "${id}" 的灵感。`);
         }
 
         if (options.json) {
@@ -484,15 +484,7 @@ export function registerSparkCommands(program: Command): Command {
         }
 
         console.log(`⚡ [Tachikoma Sparks] 灵感已更新 [${updated.id}]`);
-        console.log(`  类型:   [${updated.type}]`);
-        console.log(`  状态:   ${updated.status}`);
-        console.log(`  标题:   ${updated.title}`);
-        if (updated.cluster) {
-          console.log(`  领域:   [${formatClusterLabel(updated.cluster)}]`);
-        }
-        if (updated.tags.length > 0) {
-          console.log(`  标签:   ${updated.tags.join(" ")}`);
-        }
+        console.log(formatSparkDetails(updated));
       }
     );
 
@@ -517,11 +509,7 @@ export function registerSparkCommands(program: Command): Command {
         closeSparksDb(db);
 
         if (err || !success) {
-          console.error(
-            `[Tachikoma Sparks] 移除灵感失败: 未找到 ID 为 "${id}" 的灵感。`
-          );
-          process.exitCode = 1;
-          return;
+          return reportSparksError(`移除灵感失败: 未找到 ID 为 "${id}" 的灵感。`);
         }
 
         if (options.json) {
@@ -566,9 +554,7 @@ export function registerSparkCommands(program: Command): Command {
         closeSparksDb(db);
 
         if (err || !result) {
-          console.error(`[Tachikoma Sparks] 升格失败: ${err?.message ?? "未知错误"}`);
-          process.exitCode = 1;
-          return;
+          return reportSparksError(`升格失败: ${err?.message ?? "未知错误"}`);
         }
 
         if (options.json) {
@@ -576,7 +562,7 @@ export function registerSparkCommands(program: Command): Command {
           return;
         }
 
-        console.log("🚀 [Tachikoma Sparks] 灵感升格成功！");
+        console.log(pc.bold(pc.green("🚀 [Tachikoma Sparks] 灵感升格成功！")));
         console.log(`  ID:       ${result.spark.id}`);
         console.log(`  标题:     ${result.spark.title}`);
         console.log(`  状态:     ${result.spark.status} (常青态)`);
@@ -605,11 +591,7 @@ export function registerSparkCommands(program: Command): Command {
 
         if (!sparkRecord) {
           closeSparksDb(db);
-          console.error(
-            `[Tachikoma Sparks] 提纯失败: 未找到 ID 为 "${id}" 的灵感。`
-          );
-          process.exitCode = 1;
-          return;
+          return reportSparksError(`提纯失败: 未找到 ID 为 "${id}" 的灵感。`);
         }
 
         const [distillErr, distilled] = await tryit(distillText)(
@@ -618,11 +600,7 @@ export function registerSparkCommands(program: Command): Command {
 
         if (distillErr || !distilled) {
           closeSparksDb(db);
-          console.error(
-            `[Tachikoma Sparks] LLM 提纯失败: ${distillErr?.message ?? "未知错误"}`
-          );
-          process.exitCode = 1;
-          return;
+          return reportSparksError(`LLM 提纯失败: ${distillErr?.message ?? "未知错误"}`);
         }
 
         const [updateErr, updated] = tryit(updateSpark)(db, id, {
@@ -634,11 +612,7 @@ export function registerSparkCommands(program: Command): Command {
         closeSparksDb(db);
 
         if (updateErr || !updated) {
-          console.error(
-            `[Tachikoma Sparks] 更新灵感失败: ${updateErr?.message ?? "未知错误"}`
-          );
-          process.exitCode = 1;
-          return;
+          return reportSparksError(`更新灵感失败: ${updateErr?.message ?? "未知错误"}`);
         }
 
         if (options.json) {
@@ -647,14 +621,14 @@ export function registerSparkCommands(program: Command): Command {
         }
 
         console.log(`🧠 [Tachikoma Sparks] 灵感 [${id}] LLM 提纯已完成：`);
-        console.log(`  类型:   [${updated.type}]`);
-        console.log(`  标题:   ${updated.title}`);
-        if (updated.cluster) {
-          console.log(`  领域:   [${formatClusterLabel(updated.cluster)}]`);
-        }
-        if (updated.tags.length > 0) {
-          console.log(`  标签:   ${updated.tags.join(" ")}`);
-        }
+        console.log(
+          formatSparkDetails({
+            type: updated.type,
+            title: updated.title,
+            cluster: updated.cluster,
+            tags: updated.tags,
+          })
+        );
       }
     );
 

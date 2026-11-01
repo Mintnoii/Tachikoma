@@ -1,4 +1,5 @@
 import { tryit, unique, sift } from "radash";
+import { safeJsonParse } from "../utils/json.js";
 import {
   SparkType,
   SPARK_CORE_CLUSTERS,
@@ -314,10 +315,8 @@ export async function distillWithLLM(
   const rawAssistantContent = data?.choices?.[0]?.message?.content || "";
   const cleaned = cleanJsonOutput(rawAssistantContent);
 
-  const [parseErr, parsed] = tryit(
-    (str: string): Record<string, any> => JSON.parse(str)
-  )(cleaned);
-  if (parseErr || !parsed || typeof parsed !== "object") {
+  const parsed = safeJsonParse<Record<string, any> | null>(cleaned, null);
+  if (!parsed || typeof parsed !== "object") {
     throw new Error(
       `[Tachikoma Sparks LLM] 模型未返回有效提纯结构: ${rawAssistantContent}`
     );

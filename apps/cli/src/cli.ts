@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { resolve } from "pathe";
 import { pathToFileURL } from "node:url";
+import pc from "picocolors";
 import { clipUrl } from "@tachikoma/web-clipper";
 import {
   syncCollections,
@@ -14,10 +15,16 @@ import {
   openSparksDb,
   closeSparksDb,
   createSpark,
+  extractDouyinUrlOrId,
   SparkRecord,
 } from "@tachikoma/core";
 import { tryit, sift, unique } from "radash";
 import { registerSparkCommands } from "./sparks-cli.js";
+
+function reportCliError(msg: string): void {
+  console.error(pc.red(`[Tachikoma] ${msg}`));
+  process.exitCode = 1;
+}
 
 export interface IngestDouyinOptions {
   sparksDbPath?: string;
@@ -69,22 +76,16 @@ export function extractContentSummary(
       return true;
     });
 
-  const candidatePoints: string[] = [];
-  for (const line of rawLines) {
+  const candidatePoints = rawLines.flatMap((line) => {
     if (line.length <= 80 && line.length >= 4) {
-      candidatePoints.push(line);
-    } else {
-      const sentences = line
-        .split(/(?<=[。！？；!?;\n])\s*/)
-        .map((s) => s.trim())
-        .filter((s) => s.length >= 4);
-      if (sentences.length > 0) {
-        candidatePoints.push(...sentences);
-      } else {
-        candidatePoints.push(line.slice(0, 80));
-      }
+      return [line];
     }
-  }
+    const sentences = line
+      .split(/(?<=[。！？；!?;\n])\s*/)
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 4);
+    return sentences.length > 0 ? sentences : [line.slice(0, 80)];
+  });
 
   const uniquePoints = unique(candidatePoints);
   const maxPoints = options?.maxPoints ?? 5;
@@ -191,10 +192,14 @@ program
         ? resolve(paths.rootDir, options.output)
         : paths.ghostRawDir;
 
-    const isDouyin = /(douyin\.com|iesdouyin\.com)/i.test(url);
+    const extractedDouyin = extractDouyinUrlOrId(url);
+    const isDouyin = Boolean(
+      (extractedDouyin.url && /(douyin\.com|iesdouyin\.com)/i.test(extractedDouyin.url)) ||
+      (extractedDouyin.awemeId && /^\d{15,22}$/.test(url.trim()))
+    );
 
     if (isDouyin) {
-      console.log(`[Tachikoma] 检测到单条抖音链接，转入战术灵感军械库: ${url}`);
+      console.log(pc.cyan(`[Tachikoma] 检测到单条抖音链接，转入战术灵感军械库: ${url}`));
       const sparksDbPath = options.sparksDb
         ? resolve(paths.rootDir, options.sparksDb)
         : paths.sparksDbPath;
@@ -204,13 +209,11 @@ program
       });
 
       if (err || !res) {
-        console.error(`[Tachikoma] 抖音摄入失败: ${err?.message ?? "未知错误"}`);
-        process.exitCode = 1;
-        return;
+        return reportCliError(`抖音摄入失败: ${err?.message ?? "未知错误"}`);
       }
 
       const { record, aweme, summary, keyPoints } = res;
-      console.log(`⚡ [Tachikoma] 单条抖音灵感已录入随身军械库 (未污染 Ghost 收藏夹)`);
+      console.log(pc.green(`⚡ [Tachikoma] 单条抖音灵感已录入随身军械库 (未污染 Ghost 收藏夹)`));
       console.log(`  ID:     ${record.id}`);
       console.log(`  标题:   ${record.title}`);
       console.log(`  作者:   ${aweme.author.nickname}`);
@@ -220,22 +223,17 @@ program
         console.log(`  摘要:   ${summary}`);
       }
       if (keyPoints && keyPoints.length > 0) {
-        console.log(`  核心要点:`);
-        for (const point of keyPoints) {
-          console.log(`    • ${point}`);
-        }
+        console.log(`  核心要点:\n${keyPoints.map((point) => `    • ${point}`).join("\n")}`);
       }
-      console.log(`  提示:   未来可通过 "tachikoma spark promote ${record.id}" 自主升格至 Ghost 知识库`);
+      console.log(pc.dim(`  提示:   未来可通过 "tachikoma spark promote ${record.id}" 自主升格至 Ghost 知识库`));
     } else {
-      console.log(`[Tachikoma] 开始摄入: ${url} -> ${outputDir}`);
+      console.log(pc.cyan(`[Tachikoma] 开始摄入: ${url} -> ${outputDir}`));
       const [err, res] = await tryit(clipUrl)(url, { outputDir });
 
       if (err) {
-        console.error(`[Tachikoma] 网页剪藏失败: ${err.message}`);
-        process.exitCode = 1;
-        return;
+        return reportCliError(`网页剪藏失败: ${err.message}`);
       }
-      console.log(`[Tachikoma] 剪藏成功: ${res?.filePath} (SHA256: ${res?.sha256?.slice(0, 8)})`);
+      console.log(pc.green(`[Tachikoma] 剪藏成功: ${res?.filePath} (SHA256: ${res?.sha256?.slice(0, 8)})`));
     }
   });
 
@@ -250,7 +248,7 @@ program
       options.output && options.output !== "Ghost/_raw"
         ? resolve(paths.rootDir, options.output)
         : paths.ghostRawDir;
-    console.log(`[Tachikoma] 开始增量同步抖音收藏夹 -> ${outputDir}`);
+    console.log(pc.cyan(`[Tachikoma] 开始增量同步抖音收藏夹 -> ${outputDir}`));
 
     const audioTranscriber = createAudioTranscriber();
     const [err, results] = await tryit(syncCollections)({
@@ -260,12 +258,10 @@ program
       customTranscribe: audioTranscriber,
     });
     if (err) {
-      console.error(`[Tachikoma] 同步失败: ${err.message}`);
-      process.exitCode = 1;
-      return;
+      return reportCliError(`同步失败: ${err.message}`);
     }
 
-    console.log(`[Tachikoma] 同步完成，本次新增摄入: ${results?.length ?? 0} 件作品。`);
+    console.log(pc.green(`[Tachikoma] 同步完成，本次新增摄入: ${results?.length ?? 0} 件作品。`));
   });
 
 // 直接执行入口：仅在作为 CLI 进程启动时解析参数
