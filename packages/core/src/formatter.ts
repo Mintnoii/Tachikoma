@@ -1,5 +1,4 @@
-import { toPosixPath } from "@dotagents/utils/path.ts";
-import { computeContentHash } from "@dotagents/utils/hash.ts";
+import { toPosixPath, computeContentHash } from "./utils/index.js";
 import matter from "gray-matter";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "pathe";

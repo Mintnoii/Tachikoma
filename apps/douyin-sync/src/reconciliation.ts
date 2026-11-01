@@ -2,8 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "pathe";
 import { tryit } from "radash";
-import { toPosixPath } from "@dotagents/utils/path.ts";
-import { loadGhostTombstones, isTombstoneIgnored } from "@tachikoma/core";
+import { loadGhostTombstones, isTombstoneIgnored, TombstoneSet, toPosixPath } from "@tachikoma/core";
 import { DouyinAwemeItem } from "./types.js";
 
 const INIT_SQL = `
@@ -71,7 +70,9 @@ export function filterUnsynced(
   items: readonly DouyinAwemeItem[],
   ghostVaultRoot?: string
 ): DouyinAwemeItem[] {
-  const tombstones = ghostVaultRoot ? loadGhostTombstones(ghostVaultRoot) : { urls: new Set(), ids: new Set(), titles: new Set() };
+  const tombstones: TombstoneSet = ghostVaultRoot
+    ? loadGhostTombstones(ghostVaultRoot)
+    : { urls: new Set<string>(), ids: new Set<string>(), titles: new Set<string>() };
 
   return items.filter((item) => {
     // 1. 已在本地 SQLite 对账过，跳过

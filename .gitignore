@@ -10,3 +10,7 @@ tests/sandbox/
 
 # 敏感登录凭据
 apps/douyin-sync/config/cookies.json
+
+# Tachikoma 战术灵感本地数据与静态资产
+.sparks/
+

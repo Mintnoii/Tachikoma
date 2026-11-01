@@ -74,3 +74,129 @@ export const validateFrontmatter = createSchemaValidator<RFC2026FrontmatterSchem
   RFC2026FrontmatterSchema,
   "Frontmatter"
 );
+
+/**
+ * 战术灵感类型枚举契约
+ */
+export const SparkTypeSchema = Type.Union([
+  Type.Literal("quote"), // 金句、诗词、文案
+  Type.Literal("tool"), // 好玩开源工具、CLI神兵利器、实用网站
+  Type.Literal("joke"), // 段子、冷幽默、神级吐槽
+  Type.Literal("meme"), // 梗图、架构手绘、视觉资产
+  Type.Literal("fleeting"), // 其他即兴随笔闪念
+]);
+
+/**
+ * 战术灵感生命周期状态契约
+ */
+export const SparkStatusSchema = Type.Union([
+  Type.Literal("seed"), // 种子态：刚随手存入，未经分类或仅有粗标签
+  Type.Literal("growing"), // 生长态：同类标签聚集，自然涌现为微主题簇
+  Type.Literal("evergreen"), // 常青态：高频调用或标为神级收藏
+]);
+
+/**
+ * 战术军械库核心 MOC 领域契约 (6+1 架构)
+ * soul: 灵魂避难所 (哲学心性/修心/内心宁静/命运思考)
+ * literature: 文墨与回响 (唯美句子/文艺文案/诗意/浪漫/电影台词)
+ * life: 日常与烟火 (生活方式/美食咖啡/家居器物/宠物/松弛感日常)
+ * arsenal: 赛博军械库 (开源项目/CLI工具/黑科技)
+ * meme: 赛博解构槽 (梗图/搞笑段子/幽默吐槽)
+ * sparks: 思维火花 (灵感洞察/产品巧思/商业直觉)
+ * custom/<slug>: 涌现主题簇
+ */
+export const SPARK_CORE_CLUSTERS = [
+  "soul",
+  "literature",
+  "life",
+  "arsenal",
+  "meme",
+  "sparks",
+] as const;
+
+export type SparkCoreCluster = (typeof SPARK_CORE_CLUSTERS)[number];
+
+export const SparkCoreClusterSchema = Type.Union([
+  Type.Literal("soul"),
+  Type.Literal("literature"),
+  Type.Literal("life"),
+  Type.Literal("arsenal"),
+  Type.Literal("meme"),
+  Type.Literal("sparks"),
+]);
+
+export const SparkClusterSchema = Type.Union([
+  SparkCoreClusterSchema,
+  Type.String({ description: "自适应涌现的主题簇 (如 custom/<slug>)" }),
+]);
+
+export type SparkCluster = SparkCoreCluster | `custom/${string}` | (string & {});
+
+/**
+ * 战术灵感完整记录契约
+ */
+export const SparkRecordSchema = Type.Object({
+  id: Type.String({ minLength: 1, description: "KSUID、UUID 或 Nanoid 唯一标识" }),
+  type: SparkTypeSchema,
+  status: SparkStatusSchema,
+  title: Type.String({ minLength: 1, description: "提纯后的一句话标题或亮点" }),
+  content: Type.String({ description: "原始文案、正文或工具描述" }),
+  sourceUrl: Type.Optional(Type.String({ description: "原始链接或仓库地址" })),
+  assetPath: Type.Optional(Type.String({ description: "如果为本地图片/梗图，存储在 assets/memes/ 相对路径" })),
+  tags: Type.Array(Type.String(), { description: "扁平标签集合，如 ['#CLI', '#Rust', '#终端']" }),
+  cluster: Type.Optional(Type.String({ description: "自然生长涌现出的微领域主题簇名称 (soul | literature | life | arsenal | meme | sparks | custom/<slug>)" })),
+  accessCount: Type.Number({ default: 0, description: "调用与检索命中频次" }),
+  createdAt: Type.String({ description: "ISO 时间戳" }),
+  updatedAt: Type.String({ description: "ISO 时间戳" }),
+});
+
+/**
+ * 创建战术灵感入参契约
+ */
+export const CreateSparkInputSchema = Type.Object({
+  id: Type.Optional(Type.String({ minLength: 1 })),
+  type: SparkTypeSchema,
+  status: Type.Optional(SparkStatusSchema),
+  title: Type.String({ minLength: 1 }),
+  content: Type.String(),
+  sourceUrl: Type.Optional(Type.String()),
+  assetPath: Type.Optional(Type.String()),
+  tags: Type.Optional(Type.Array(Type.String())),
+  cluster: Type.Optional(Type.String()),
+  accessCount: Type.Optional(Type.Number()),
+  createdAt: Type.Optional(Type.String()),
+  updatedAt: Type.Optional(Type.String()),
+});
+
+/**
+ * 更新战术灵感入参契约
+ */
+export const UpdateSparkInputSchema = Type.Object({
+  type: Type.Optional(SparkTypeSchema),
+  status: Type.Optional(SparkStatusSchema),
+  title: Type.Optional(Type.String({ minLength: 1 })),
+  content: Type.Optional(Type.String()),
+  sourceUrl: Type.Optional(Type.String()),
+  assetPath: Type.Optional(Type.String()),
+  tags: Type.Optional(Type.Array(Type.String())),
+  cluster: Type.Optional(Type.String()),
+  accessCount: Type.Optional(Type.Number()),
+  updatedAt: Type.Optional(Type.String()),
+});
+
+export type SparkType = Static<typeof SparkTypeSchema>;
+export type SparkStatus = Static<typeof SparkStatusSchema>;
+export type SparkRecord = Static<typeof SparkRecordSchema>;
+export type CreateSparkInput = Static<typeof CreateSparkInputSchema>;
+export type UpdateSparkInput = Static<typeof UpdateSparkInputSchema>;
+
+export const validateSparkRecord = createSchemaValidator<SparkRecord>(
+  SparkRecordSchema,
+  "SparkRecord"
+);
+
+export const validateCreateSparkInput = createSchemaValidator<CreateSparkInput>(
+  CreateSparkInputSchema,
+  "CreateSparkInput"
+);
+

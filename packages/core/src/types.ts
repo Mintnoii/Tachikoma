@@ -66,3 +66,12 @@ export interface TachikomaConfig {
   cookiesPath?: string; // 抖音/推文 Cookies 凭据路径
   downloadMedia?: boolean; // 是否持久化多媒体资源
 }
+
+export type {
+  SparkType,
+  SparkStatus,
+  SparkRecord,
+  CreateSparkInput,
+  UpdateSparkInput,
+} from "./schema.js";
+

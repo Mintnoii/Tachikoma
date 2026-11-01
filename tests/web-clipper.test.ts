@@ -8,7 +8,7 @@ import {
   parseHtmlToDoc,
   clipUrl,
 } from "@tachikoma/web-clipper";
-import { readMarkdownFile } from "@dotagents/utils/markdown.ts";
+import { readMarkdownFile } from "@tachikoma/core";
 
 const SANDBOX_DIR = join(process.cwd(), "tests/sandbox/web-clipper-test");
 
@@ -109,7 +109,7 @@ test("Phase 3: Web Clipper Sub-App Comprehensive Tests", async (t) => {
     assert.equal(result.title, "攻壳机动队：分布式 Agent 演化体系重构");
     assert.ok(filePath.includes("articles/攻壳机动队：分布式 Agent 演化体系重构.md"));
 
-    // 通过 @dotagents/utils 读取落盘卡片并验证 RFC-2026-0922
+    // 通过 @tachikoma/core 读取落盘卡片并验证 RFC-2026-0922
     const parsed = await readMarkdownFile(filePath);
     assert.equal(parsed.data.title, "攻壳机动队：分布式 Agent 演化体系重构");
     assert.equal(parsed.data.entry, "wechat-clipper");

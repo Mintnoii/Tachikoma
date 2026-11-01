@@ -10,12 +10,24 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "scripts": {
+    "build": "tsup"
+  },
   "dependencies": {
+    "@mozilla/readability": "^0.5.0",
+    "@sinclair/typebox": "^0.34.14",
     "@tachikoma/core": "workspace:*",
     "@tachikoma/douyin-sync": "workspace:*",
     "@tachikoma/web-clipper": "workspace:*",
     "commander": "^13.1.0",
+    "gray-matter": "^4.0.3",
+    "jsdom": "^26.0.0",
     "pathe": "^2.0.3",
-    "radash": "^12.1.1"
+    "playwright-core": "^1.50.0",
+    "radash": "^12.1.1",
+    "turndown": "^7.2.0"
+  },
+  "devDependencies": {
+    "tsup": "^9.0.0"
   }
 }

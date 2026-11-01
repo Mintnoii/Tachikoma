@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Tachikoma — 个人第二大脑统一多模态情报摄入引擎",
   "scripts": {
+    "build": "pnpm --filter @tachikoma/cli build",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/**/*.test.ts"
   },

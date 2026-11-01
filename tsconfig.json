@@ -16,8 +16,6 @@
       "radash/*": ["node_modules/radash/*"],
       "gray-matter": ["node_modules/gray-matter"],
       "gray-matter/*": ["node_modules/gray-matter/*"],
-      "@dotagents/utils": ["../dotagents/utils/index.ts"],
-      "@dotagents/utils/*": ["../dotagents/utils/*"],
       "@tachikoma/core": ["packages/core/src/index.ts"],
       "@tachikoma/core/*": ["packages/core/src/*"],
       "@tachikoma/web-clipper": ["apps/web-clipper/src/index.ts"],

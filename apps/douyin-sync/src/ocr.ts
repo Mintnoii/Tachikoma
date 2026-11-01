@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { extname } from "pathe";
 import { tryit } from "radash";
-import { toPosixPath } from "@dotagents/utils/path.ts";
+import { toPosixPath } from "@tachikoma/core";
 
 export interface MagpieOCROptions {
   baseUrl?: string; // 默认 http://127.0.0.1:3425/v1
@@ -63,9 +63,22 @@ export async function ocrImage(
   urlOrPath: string,
   options: MagpieOCROptions = {}
 ): Promise<string> {
-  const baseUrl = (options.baseUrl || "http://127.0.0.1:3425/v1").replace(/\/+$/, "");
-  const apiKey = options.apiKey || "magpie";
-  const model = options.model || "auto/gemini-3.8-flash";
+  const baseUrl = (
+    options.baseUrl ||
+    process.env.MAGPIE_BASE_URL ||
+    process.env.OPENAI_BASE_URL ||
+    "http://127.0.0.1:3425/v1"
+  ).replace(/\/+$/, "");
+  const apiKey =
+    options.apiKey ||
+    process.env.MAGPIE_API_KEY ||
+    process.env.OPENAI_API_KEY ||
+    "magpie";
+  const model =
+    options.model ||
+    process.env.MAGPIE_VISION_MODEL ||
+    process.env.OPENAI_VISION_MODEL ||
+    "auto/gemini-3.8-flash";
   const timeoutMs = options.timeoutMs || 60000;
   const activeFetcher: typeof fetch = (options.customFetcher as any) ?? globalThis.fetch;
 

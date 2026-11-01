@@ -23,12 +23,11 @@ export function cleanUrl(rawUrl?: string): string | null {
   if (!rawUrl || typeof rawUrl !== "string") return null;
   const trimmed = rawUrl.trim();
   if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return null;
-  try {
-    const parsed = new URL(trimmed);
+  const [urlErr, parsed] = tryit((str: string) => new URL(str))(trimmed);
+  if (!urlErr && parsed) {
     return `${parsed.origin}${parsed.pathname}`;
-  } catch {
-    return trimmed;
   }
+  return trimmed;
 }
 
 /**
@@ -40,12 +39,14 @@ export function loadGhostTombstones(ghostVaultRoot: string): TombstoneSet {
     return { urls: new Set(), ids: new Set(), titles: new Set() };
   }
 
-  const [err, content] = tryit(readFileSync)(filePath, "utf-8");
+  const [err, content] = tryit((p: string) => readFileSync(p, "utf-8"))(filePath);
   if (err || !content) {
     return { urls: new Set(), ids: new Set(), titles: new Set() };
   }
 
-  const [parseErr, records] = tryit(JSON.parse)(content);
+  const [parseErr, records] = tryit((raw: string) => JSON.parse(raw) as unknown[])(
+    String(content)
+  ) as [Error | undefined, unknown[] | undefined];
   if (parseErr || !Array.isArray(records)) {
     return { urls: new Set(), ids: new Set(), titles: new Set() };
   }

@@ -16,9 +16,11 @@ import {
   closeReconcilerDb,
   ocrGallery,
   processAweme,
+  syncCollections,
+  fetchAwemeDetailWithTranscript,
   DouyinAwemeItem,
 } from "@tachikoma/douyin-sync";
-import { readMarkdownFile } from "@dotagents/utils/markdown.ts";
+import { readMarkdownFile } from "@tachikoma/core";
 
 const SANDBOX_DIR = join(process.cwd(), "tests/sandbox/douyin-test");
 const DB_PATH = join(SANDBOX_DIR, "state.db");
@@ -339,6 +341,118 @@ test("Phase 2: Douyin Sync Sub-App Comprehensive Tests", async (t) => {
     assert.equal(outcome.title, "抖音作品_7300000004");
     assert.ok(outcome.content.includes("## 转录内容 / Notes"));
     assert.ok(outcome.content.includes("（原作者未填写文案描述）"));
+  });
+
+  await t.test("Task 2.8: DouyinPipeline folderName routes card into sub-directory outputDir/douyin/<folderName>/<title>.md", async () => {
+    const testItem: DouyinAwemeItem = {
+      id: "7300000005",
+      desc: "认知重塑与心智模型构建",
+      author: {
+        uid: "u500",
+        secUid: "sec_u500",
+        nickname: "塔奇克马研究员",
+      },
+      createTime: 1730333200,
+      mediaType: "video",
+      shareUrl: "https://www.douyin.com/video/7300000005",
+    };
+
+    const outcome = await processAweme(
+      testItem,
+      {
+        outputDir: SANDBOX_DIR,
+        downloadMedia: false,
+      },
+      undefined,
+      "认知存档"
+    );
+
+    assert.equal(outcome.title, "认知重塑与心智模型构建");
+    const subCardPath = join(SANDBOX_DIR, "douyin", "认知存档", "认知重塑与心智模型构建.md");
+    const parsed = await readMarkdownFile(subCardPath);
+    assert.equal(parsed.data.title, "认知重塑与心智模型构建");
+    assert.equal(parsed.data.entry, "douyin-sync");
+  });
+
+  await t.test("Task 2.9: DouyinPipeline syncCollections routes awemes into corresponding folderName subdirectories", async () => {
+    const mockTransport = async (path: string, params?: Record<string, unknown>) => {
+      if (path.includes("/aweme/v1/web/collects/list/")) {
+        return {
+          status_code: 0,
+          collects_list: [
+            { collects_id: "col_ai", collects_name: "AI存档", total_number: 1 },
+          ],
+          has_more: 0,
+          cursor: 0,
+        };
+      }
+      if (path.includes("/aweme/v1/web/collects/video/list/")) {
+        return {
+          status_code: 0,
+          aweme_list: [
+            {
+              aweme_id: "7300000006",
+              desc: "大型语言模型原理与实践",
+              aweme_type: 4,
+              author: {
+                uid: "u600",
+                sec_uid: "sec_u600",
+                nickname: "AI导师",
+              },
+              create_time: 1730333300,
+            },
+          ],
+          has_more: 0,
+          cursor: 1,
+        };
+      }
+      return {};
+    };
+
+    const results = await syncCollections({
+      outputDir: SANDBOX_DIR,
+      downloadMedia: false,
+      customTransport: mockTransport,
+    });
+
+    assert.equal(results.length, 1);
+    const subCardPath = join(SANDBOX_DIR, "douyin", "AI存档", "大型语言模型原理与实践.md");
+    const parsed = await readMarkdownFile(subCardPath);
+    assert.equal(parsed.data.title, "大型语言模型原理与实践");
+  });
+
+  await t.test("Task 2.10: fetchAwemeDetailWithTranscript extracts aweme and transcript correctly", async () => {
+    const mockTransport = async (path: string, params?: Record<string, unknown>) => {
+      if (path.includes("/aweme/v1/web/aweme/detail/")) {
+        return {
+          status_code: 0,
+          aweme_detail: {
+            aweme_id: "7300000007",
+            desc: "单条测试视频",
+            aweme_type: 4,
+            video: {
+              play_addr: { url_list: ["https://example.com/play.mp4"] },
+            },
+            author: {
+              uid: "u700",
+              sec_uid: "sec_u700",
+              nickname: "灵感创作者",
+            },
+            create_time: 1730333400,
+          },
+        };
+      }
+      return {};
+    };
+
+    const data = await fetchAwemeDetailWithTranscript("https://www.douyin.com/video/7300000007", {
+      customTransport: mockTransport,
+      customTranscribe: async () => "这是单条视频的语音转录测试文本",
+    });
+
+    assert.equal(data.aweme.id, "7300000007");
+    assert.equal(data.aweme.author.nickname, "灵感创作者");
+    assert.equal(data.transcript, "这是单条视频的语音转录测试文本");
   });
 
   // 清理沙盒

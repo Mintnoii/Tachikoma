@@ -1,6 +1,6 @@
 import { chromium, type BrowserContext, type Page } from "playwright-core";
 import { sift, tryit } from "radash";
-import { toPosixPath } from "@dotagents/utils/path.ts";
+import { toPosixPath } from "@tachikoma/core";
 
 export type CustomTransport = (path: string, params?: Record<string, unknown>) => Promise<any>;
 

@@ -43,8 +43,9 @@ export interface DouyinSyncOptions {
   sqlitePath?: string;
   dbPath?: string;
   collectId?: string;
+  folderName?: string;
   customTransport?: (path: string, params?: Record<string, unknown>) => Promise<any>;
   customFetcher?: (url: string, init?: RequestInit) => Promise<Response>;
   customOcr?: (images: string[]) => Promise<string>;
-  customTranscribe?: (videoUrlOrPath: string) => Promise<string>;
+  customTranscribe?: (videoUrlOrPath: string) => Promise<string | undefined>;
 }

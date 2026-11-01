@@ -8,8 +8,8 @@ import {
   validateFrontmatter,
   formatToRFC2026Markdown,
   persistIngestionResult,
+  readMarkdownFile,
 } from "@tachikoma/core";
-import { readMarkdownFile } from "@dotagents/utils/markdown.ts";
 
 const SANDBOX_DIR = join(process.cwd(), "tests/sandbox/core-test");
 
@@ -89,7 +89,7 @@ test("Task 1.3: Core Schema & RFC Formatting in isolated sandbox", async (t) => 
     const { filePath, sha256 } = await persistIngestionResult(item, SANDBOX_DIR, "articles");
     assert.ok(filePath.includes("tests/sandbox/core-test/articles/沙盒安全落盘测试.md"));
 
-    // 通过 @dotagents/utils 的 readMarkdownFile 读取并检验
+    // 通过 @tachikoma/core 的 readMarkdownFile 读取并检验
     const parsed = await readMarkdownFile(filePath);
     assert.equal(parsed.data.title, "沙盒安全落盘测试");
     assert.equal(parsed.data.entry, "wechat-clipper");

@@ -2,11 +2,11 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import { dirname, join } from "pathe";
 import { sift, tryit } from "radash";
-import { toPosixPath } from "@dotagents/utils/path.ts";
-import { IngestionResult, persistIngestionResult } from "@tachikoma/core";
+import { IngestionResult, persistIngestionResult, toPosixPath } from "@tachikoma/core";
 import { openBrowserBridge, closeBrowserBridge } from "./bridge.js";
 import { fetchAwemeDetail, fetchCollectList, fetchCollectAwemes } from "./client.js";
 import { ocrGallery } from "./ocr.js";
+import { createAudioTranscriber } from "./asr.js";
 import {
   openReconcilerDb,
   closeReconcilerDb,
@@ -41,7 +41,8 @@ export async function downloadAsset(url: string, targetPath: string): Promise<st
 export async function processAweme(
   item: DouyinAwemeItem,
   options: DouyinSyncOptions,
-  db?: DatabaseSync
+  db?: DatabaseSync,
+  folderName?: string
 ): Promise<IngestionResult> {
   const title = (item.desc || `抖音作品_${item.id}`)
     .replace(/\s+/g, " ")
@@ -119,8 +120,15 @@ export async function processAweme(
         const rawTranscript = options.customTranscribe
           ? await options.customTranscribe(videoSource)
           : undefined;
-        const transcriptMarkdown =
-          rawTranscript?.trim() || item.desc || "（原作者未填写文案描述）";
+
+        let transcriptMarkdown: string;
+        if (rawTranscript && rawTranscript.trim()) {
+          transcriptMarkdown = `> 🎙️ **[音频转录]**\n\n${rawTranscript.trim()}`;
+        } else if (item.desc && item.desc.trim()) {
+          transcriptMarkdown = `${item.desc.trim()}\n\n> 💡 说明 [文案描述备选]: 未获取到语音转录文本，以上内容为原作者发布的视频文案描述。`;
+        } else {
+          transcriptMarkdown = "（原作者未填写文案描述）";
+        }
 
         return sift([
           `# ${title}`,
@@ -154,11 +162,17 @@ export async function processAweme(
     createdAt: new Date(item.createTime * 1000).toISOString(),
   };
 
-  // 落盘至 outputDir/douyin/
+  const resolvedFolder = (folderName ?? options.folderName)?.trim();
+  const sanitizedFolder = resolvedFolder
+    ? resolvedFolder.replace(/[:*?"<>|]/g, "_")
+    : undefined;
+  const category = sanitizedFolder ? `douyin/${sanitizedFolder}` : "douyin";
+
+  // 落盘至 outputDir/douyin/<folderName>/ 或 outputDir/douyin/
   const { sha256 } = await persistIngestionResult(
     ingestionResult,
     options.outputDir,
-    "douyin"
+    category
   );
 
   ingestionResult.sha256 = sha256;
@@ -198,9 +212,18 @@ export async function syncSingleAweme(
     const match = urlOrId.match(/(?:video\/|note\/|modal_id=)(\d+)/);
     const awemeId = match?.[1] ?? urlOrId.replace(/\D/g, "");
     const aweme = await fetchAwemeDetail(bridge, awemeId || urlOrId);
-    const result = await processAweme(aweme, options, db);
+    const result = await processAweme(aweme, options, db, options.folderName);
+    const resolvedFolder = options.folderName?.trim();
+    const sanitizedFolder = resolvedFolder
+      ? resolvedFolder.replace(/[:*?"<>|]/g, "_")
+      : undefined;
+    const category = sanitizedFolder ? `douyin/${sanitizedFolder}` : "douyin";
+    const sanitizedTitle = (result.title || "untitled")
+      .replace(/[\\/:*?"<>|]/g, "_")
+      .trim()
+      .slice(0, 80);
     const targetPath = toPosixPath(
-      join(options.outputDir, "douyin", `${result.title || "untitled"}.md`)
+      join(options.outputDir, category, `${sanitizedTitle || "untitled"}.md`)
     );
     return { filePath: targetPath, sha256: result.sha256 ?? "", result };
   } finally {
@@ -229,24 +252,85 @@ export async function syncCollections(
   });
 
   try {
-    const folderIds = targetCollectId
-      ? [targetCollectId]
-      : (await fetchCollectList(bridge)).folders.map((f) => f.id);
+    const { folders } = await fetchCollectList(bridge);
+    const targetFolders = targetCollectId
+      ? sift([
+          folders.find((f) => f.id === targetCollectId) ?? {
+            id: targetCollectId,
+            name: options.folderName || "",
+            totalCount: 0,
+          },
+        ])
+      : folders;
 
-    const awemeLists = await Promise.all(
-      folderIds.map(async (fid) => {
-        const { items } = await fetchCollectAwemes(bridge, fid);
-        return items;
+    const folderResults = await Promise.all(
+      targetFolders.map(async (folder) => {
+        const { items } = await fetchCollectAwemes(bridge, folder.id);
+        const unsyncedItems = db ? filterUnsynced(db, items) : items;
+        return Promise.all(
+          unsyncedItems.map((item) =>
+            processAweme(item, options, db, folder.name || undefined)
+          )
+        );
       })
     );
-    const allItems = awemeLists.flat();
-    const unsyncedItems = db ? filterUnsynced(db, allItems) : allItems;
 
-    return await Promise.all(unsyncedItems.map((item) => processAweme(item, options, db)));
+    return folderResults.flat();
   } finally {
     await closeBrowserBridge(bridge);
     if (db) {
       closeReconcilerDb(db);
     }
+  }
+}
+
+export interface FetchAwemeResult {
+  aweme: DouyinAwemeItem;
+  transcript?: string;
+  ocrContent?: string;
+}
+
+/**
+ * 纯函数原子流：获取单条抖音作品详情与语音转录/OCR文本
+ */
+export async function fetchAwemeDetailWithTranscript(
+  urlOrId: string,
+  options?: Partial<DouyinSyncOptions>
+): Promise<FetchAwemeResult> {
+  const bridge = openBrowserBridge({
+    cdpEndpoint: options?.cdpEndpoint,
+    profileDir: options?.profileDir,
+    customTransport: options?.customTransport,
+  });
+
+  try {
+    const match = urlOrId.match(/(?:video\/|note\/|modal_id=)(\d+)/);
+    const awemeId = match?.[1] ?? urlOrId.replace(/\D/g, "");
+    const aweme = await fetchAwemeDetail(bridge, awemeId || urlOrId);
+
+    let transcript: string | undefined;
+    let ocrContent: string | undefined;
+
+    if (aweme.mediaType === "video") {
+      const transcriber = options?.customTranscribe ?? createAudioTranscriber();
+      const videoSource = aweme.videoPlayUrl || aweme.shareUrl;
+      if (videoSource) {
+        const [transcribeErr, res] = await tryit(transcriber)(videoSource);
+        if (!transcribeErr && res && res.trim()) {
+          transcript = res.trim();
+        }
+      }
+    } else if (aweme.mediaType === "gallery" && aweme.imageUrls && aweme.imageUrls.length > 0) {
+      if (options?.customOcr) {
+        const [ocrErr, res] = await tryit(options.customOcr)(aweme.imageUrls);
+        if (!ocrErr && res && res.trim()) {
+          ocrContent = res.trim();
+        }
+      }
+    }
+
+    return { aweme, transcript, ocrContent };
+  } finally {
+    await closeBrowserBridge(bridge);
   }
 }
