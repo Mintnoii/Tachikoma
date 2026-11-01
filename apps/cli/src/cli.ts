@@ -180,8 +180,10 @@ program
 registerSparkCommands(program);
 
 program
-  .command("ingest")
-  .description("摄入单个网页、微信文章、X(Twitter)推文或单条抖音视频")
+  .command("capture")
+  .alias("cap")
+  .alias("ingest") // 保持向后兼容，但推荐 capture
+  .description("捕获单个网页、微信文章、X(Twitter)推文或单条抖音视频")
   .argument("<url>", "目标资源 URL")
   .option("-o, --output <dir>", "输出存储目录", "Ghost/_raw")
   .option("--sparks-db <path>", "指定灵感数据库路径")
@@ -227,13 +229,13 @@ program
       }
       console.log(pc.dim(`  提示:   未来可通过 "tachikoma spark promote ${record.id}" 自主升格至 Ghost 知识库`));
     } else {
-      console.log(pc.cyan(`[Tachikoma] 开始摄入: ${url} -> ${outputDir}`));
+      console.log(pc.cyan(`[Tachikoma] 开始捕获: ${url} -> ${outputDir}`));
       const [err, res] = await tryit(clipUrl)(url, { outputDir });
 
       if (err) {
-        return reportCliError(`网页剪藏失败: ${err.message}`);
+        return reportCliError(`网页捕获失败: ${err.message}`);
       }
-      console.log(pc.green(`[Tachikoma] 剪藏成功: ${res?.filePath} (SHA256: ${res?.sha256?.slice(0, 8)})`));
+      console.log(pc.green(`[Tachikoma] 捕获成功: ${res?.filePath} (SHA256: ${res?.sha256?.slice(0, 8)})`));
     }
   });
 
