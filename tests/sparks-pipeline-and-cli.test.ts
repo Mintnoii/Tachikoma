@@ -711,6 +711,29 @@ test("Tachikoma Tactical Sparks: Pipeline, CLI & Ghost Promotion Comprehensive T
       assert.ok(parsed.content.includes("#CLI"));
     });
 
+    await t.test("promoteSparkToGhost routes douyin sparks to douyin/sparks directory automatically", async () => {
+      const douyinSpark = await refineAndCreateSpark(db, "https://www.douyin.com/video/7234567890123456789", {
+        title: "大模型提示词工程第一性原理",
+        tags: ["#抖音", "#短视频", "#AI"],
+        timeoutMs: 50,
+      });
+
+      const promoteRes = await promoteSparkToGhost(db, douyinSpark.id, {
+        outputDir: GHOST_OUTPUT_DIR,
+      });
+
+      assert.equal(promoteRes.spark.status, "evergreen");
+      assert.ok(
+        promoteRes.filePath.includes("douyin/sparks") || promoteRes.filePath.includes("douyin\\sparks"),
+        `Expected douyin/sparks in path, got: ${promoteRes.filePath}`
+      );
+
+      const fileContent = await readFile(promoteRes.filePath, "utf-8");
+      const parsed = matter(fileContent);
+      assert.equal(parsed.data.title, "大模型提示词工程第一性原理");
+      assert.equal(parsed.data.extra.spark_id, douyinSpark.id);
+    });
+
     await t.test("CLI promote subcommand executes end-to-end promotion", async () => {
       const testCliDbPath = join(SANDBOX_DIR, "cli-promote-test.db");
       const localDb = openSparksDb(testCliDbPath);

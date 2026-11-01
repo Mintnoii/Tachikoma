@@ -14,3 +14,6 @@ apps/douyin-sync/config/cookies.json
 # Tachikoma 战术灵感本地数据与静态资产
 .sparks/
 
+# Rust 构建产物
+packages/guard/target/
+

@@ -48,4 +48,5 @@ export interface DouyinSyncOptions {
   customFetcher?: (url: string, init?: RequestInit) => Promise<Response>;
   customOcr?: (images: string[]) => Promise<string>;
   customTranscribe?: (videoUrlOrPath: string) => Promise<string | undefined>;
+  customExtractor?: (urlOrId: string) => Promise<DouyinAwemeItem>;
 }

@@ -5,6 +5,27 @@ import { formatToRFC2026Markdown, persistIngestionResult } from "../formatter.js
 import { PromoteSparkOptions, PromoteSparkResult } from "./types.js";
 
 /**
+ * 根据灵感记录的来源和标签推断 Ghost 目标子目录
+ * - 抖音作品/短视频/图集 -> douyin/sparks
+ * - 其他灵感/文章/工具 -> articles
+ */
+export function inferSparkCategory(spark: SparkRecord, explicitCategory?: string): string {
+  if (explicitCategory) {
+    return explicitCategory;
+  }
+
+  const isDouyin =
+    Boolean(spark.sourceUrl && /(douyin\.com|iesdouyin\.com)/i.test(spark.sourceUrl)) ||
+    (spark.tags && spark.tags.some((tag) => tag.includes("抖音")));
+
+  if (isDouyin) {
+    return "douyin/sparks";
+  }
+
+  return "articles";
+}
+
+/**
  * 将 SparkRecord 转换为标准 IngestionResult
  */
 export function sparkToIngestionResult(spark: SparkRecord): IngestionResult {
@@ -70,7 +91,7 @@ export async function promoteSparkToGhost(
 
   const ingestion = sparkToIngestionResult(spark);
   const outputDir = options?.outputDir ?? "Ghost/_raw";
-  const category = options?.category ?? "articles";
+  const category = inferSparkCategory(spark, options?.category);
 
   // 1. 格式化并持久化至 Ghost _raw 底座
   const persistRes = await persistIngestionResult(ingestion, outputDir, category);

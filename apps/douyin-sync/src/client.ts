@@ -11,30 +11,43 @@ export const normalizeAweme = (raw: any): DouyinAwemeItem => {
   const authorRaw = raw?.author ?? {};
   const author = {
     uid: String(authorRaw.uid ?? ""),
-    secUid: String(authorRaw.sec_uid ?? ""),
+    secUid: String(authorRaw.sec_uid ?? authorRaw.secUid ?? ""),
     nickname: String(authorRaw.nickname || "未知作者"),
-    avatarUrl: authorRaw.avatar_thumb?.url_list?.[0] ?? authorRaw.avatar_larger?.url_list?.[0],
+    avatarUrl:
+      authorRaw.avatar_thumb?.url_list?.[0] ??
+      authorRaw.avatar_larger?.url_list?.[0] ??
+      authorRaw.avatarUrl,
   };
 
-  const imageUrls = sift<string>((raw?.images ?? []).map((img: any) => img?.url_list?.[0]));
+  const rawImages = raw?.images ?? raw?.image_list ?? [];
+  const imageUrls = sift<string>(
+    rawImages.map((img: any) => {
+      if (typeof img === "string") return img;
+      return img?.url_list?.[0] ?? img?.download_url_list?.[0] ?? img?.url ?? null;
+    })
+  );
   const isGallery = raw?.aweme_type === 68 || imageUrls.length > 0;
-  const videoPlayUrl = raw?.video?.play_addr?.url_list?.[0];
+  const videoPlayUrl =
+    raw?.video?.play_addr?.url_list?.[0] ??
+    raw?.video?.play_addr_h264?.url_list?.[0] ??
+    raw?.video_play_url ??
+    raw?.videoPlayUrl;
   const stats = raw?.statistics ?? {};
 
   return {
     id: awemeId,
     desc: desc || `抖音作品_${awemeId}`,
     author,
-    createTime: Number(raw?.create_time || Math.floor(Date.now() / 1000)),
+    createTime: Number(raw?.create_time || raw?.createTime || Math.floor(Date.now() / 1000)),
     mediaType: isGallery ? "gallery" : "video",
     videoPlayUrl,
     imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
-    shareUrl: `https://www.douyin.com/video/${awemeId}`,
+    shareUrl: raw?.share_url || (awemeId ? `https://www.douyin.com/video/${awemeId}` : ""),
     statistics: {
-      diggCount: stats.digg_count,
-      commentCount: stats.comment_count,
-      collectCount: stats.collect_count,
-      shareCount: stats.share_count,
+      diggCount: stats.digg_count ?? stats.diggCount,
+      commentCount: stats.comment_count ?? stats.commentCount,
+      collectCount: stats.collect_count ?? stats.collectCount,
+      shareCount: stats.share_count ?? stats.shareCount,
     },
     raw,
   };

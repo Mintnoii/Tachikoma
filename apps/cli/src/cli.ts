@@ -5,6 +5,7 @@ import { clipUrl } from "@tachikoma/web-clipper";
 import {
   syncCollections,
   fetchAwemeDetailWithTranscript,
+  fetchPublicAwemeItem,
   createAudioTranscriber,
   DouyinAwemeItem,
 } from "@tachikoma/douyin-sync";
@@ -23,14 +24,83 @@ export interface IngestDouyinOptions {
   customTransport?: (path: string, params?: Record<string, unknown>) => Promise<any>;
   customTranscribe?: (source: string) => Promise<string | undefined>;
   customOcr?: (images: string[]) => Promise<string>;
+  customExtractor?: (urlOrId: string) => Promise<DouyinAwemeItem>;
+  customSummarizer?: (text: string) => Promise<{ summary?: string; keyPoints?: string[] }>;
   cdpEndpoint?: string;
   profileDir?: string;
+  magpieBaseUrl?: string;
+  magpieApiKey?: string;
+  magpieModel?: string;
+  customFetcher?: (url: string, init?: RequestInit) => Promise<Response>;
 }
 
 export interface IngestDouyinResult {
   record: SparkRecord;
   aweme: DouyinAwemeItem;
   transcript?: string;
+  ocrContent?: string;
+  summary?: string;
+  keyPoints?: string[];
+}
+
+/**
+ * 纯函数：从正文、语音转录或图集 OCR 中提取高密度内容摘要与核心要点
+ */
+export function extractContentSummary(
+  text: string,
+  options?: { maxPoints?: number }
+): { summary: string; keyPoints: string[] } {
+  const cleaned = text
+    .replace(/^###\s+第\s*\d+\s*张\s*\/[^\n]*/gm, "")
+    .replace(/【无文字】/g, "")
+    .replace(/>\s*⚠️\s*OCR[^\n]*/g, "")
+    .replace(/🎙️\s*音频转录:/g, "")
+    .replace(/🖼️\s*OCR转录:/g, "")
+    .replace(/^[#>*-\s]+/gm, "")
+    .trim();
+
+  const rawLines = cleaned
+    .split(/\r?\n+/)
+    .map((line) => line.trim())
+    .filter((line) => {
+      if (!line) return false;
+      if (line.length < 2) return false;
+      if (/^#[\p{L}\p{N}_-]+$/u.test(line)) return false;
+      return true;
+    });
+
+  const candidatePoints: string[] = [];
+  for (const line of rawLines) {
+    if (line.length <= 80 && line.length >= 4) {
+      candidatePoints.push(line);
+    } else {
+      const sentences = line
+        .split(/(?<=[。！？；!?;\n])\s*/)
+        .map((s) => s.trim())
+        .filter((s) => s.length >= 4);
+      if (sentences.length > 0) {
+        candidatePoints.push(...sentences);
+      } else {
+        candidatePoints.push(line.slice(0, 80));
+      }
+    }
+  }
+
+  const uniquePoints = unique(candidatePoints);
+  const maxPoints = options?.maxPoints ?? 5;
+  const keyPoints = uniquePoints.slice(0, maxPoints);
+
+  let summary = "";
+  if (keyPoints.length > 0) {
+    summary = keyPoints.slice(0, 2).join("；");
+    if (summary.length > 100) {
+      summary = summary.slice(0, 97) + "...";
+    }
+  } else if (cleaned.length > 0) {
+    summary = cleaned.slice(0, 80);
+  }
+
+  return { summary, keyPoints };
 }
 
 /**
@@ -45,8 +115,13 @@ export async function ingestDouyinToSparks(
     customTransport: options?.customTransport,
     customTranscribe: audioTranscriber,
     customOcr: options?.customOcr,
+    customExtractor: options?.customExtractor,
     cdpEndpoint: options?.cdpEndpoint,
     profileDir: options?.profileDir,
+    magpieBaseUrl: options?.magpieBaseUrl,
+    magpieApiKey: options?.magpieApiKey,
+    magpieModel: options?.magpieModel,
+    customFetcher: options?.customFetcher,
   });
 
   const { aweme, transcript, ocrContent } = data;
@@ -62,10 +137,17 @@ export async function ingestDouyinToSparks(
   ]);
   const content = contentParts.length > 0 ? contentParts.join("\n\n") : title;
 
+  const extracted = options?.customSummarizer
+    ? await options.customSummarizer(content)
+    : extractContentSummary(content);
+  const summary = extracted.summary;
+  const keyPoints = extracted.keyPoints;
+
   const authorTag = aweme.author.nickname
     ? `#${aweme.author.nickname.replace(/[\s#,，]/g, "")}`
     : undefined;
-  const tags = unique(sift(["#抖音", "#短视频", authorTag]));
+  const mediaTag = aweme.mediaType === "gallery" ? "#图集" : "#短视频";
+  const tags = unique(sift(["#抖音", mediaTag, authorTag]));
 
   const paths = getTachikomaWorkspacePaths();
   const dbPath = options?.sparksDbPath ?? paths.sparksDbPath;
@@ -80,7 +162,7 @@ export async function ingestDouyinToSparks(
       tags,
       status: "seed",
     });
-    return { record, aweme, transcript };
+    return { record, aweme, transcript, ocrContent, summary, keyPoints };
   } finally {
     closeSparksDb(db);
   }
@@ -127,12 +209,22 @@ program
         return;
       }
 
-      const { record, aweme } = res;
+      const { record, aweme, summary, keyPoints } = res;
       console.log(`⚡ [Tachikoma] 单条抖音灵感已录入随身军械库 (未污染 Ghost 收藏夹)`);
       console.log(`  ID:     ${record.id}`);
       console.log(`  标题:   ${record.title}`);
       console.log(`  作者:   ${aweme.author.nickname}`);
+      console.log(`  媒介:   ${aweme.mediaType === "gallery" ? "图集" : "视频"}`);
       console.log(`  标签:   ${record.tags.join(" ")}`);
+      if (summary) {
+        console.log(`  摘要:   ${summary}`);
+      }
+      if (keyPoints && keyPoints.length > 0) {
+        console.log(`  核心要点:`);
+        for (const point of keyPoints) {
+          console.log(`    • ${point}`);
+        }
+      }
       console.log(`  提示:   未来可通过 "tachikoma spark promote ${record.id}" 自主升格至 Ghost 知识库`);
     } else {
       console.log(`[Tachikoma] 开始摄入: ${url} -> ${outputDir}`);

@@ -5,6 +5,7 @@ import { sift, tryit } from "radash";
 import { IngestionResult, persistIngestionResult, toPosixPath } from "@tachikoma/core";
 import { openBrowserBridge, closeBrowserBridge } from "./bridge.js";
 import { fetchAwemeDetail, fetchCollectList, fetchCollectAwemes } from "./client.js";
+import { fetchPublicAwemeItem } from "./public.js";
 import { ocrGallery } from "./ocr.js";
 import { createAudioTranscriber } from "./asr.js";
 import {
@@ -292,45 +293,69 @@ export interface FetchAwemeResult {
 
 /**
  * 纯函数原子流：获取单条抖音作品详情与语音转录/OCR文本
+ * 优先对单条公开作品执行免登录纯内存匿名解析，按需平滑降级回退
  */
 export async function fetchAwemeDetailWithTranscript(
   urlOrId: string,
   options?: Partial<DouyinSyncOptions>
 ): Promise<FetchAwemeResult> {
-  const bridge = openBrowserBridge({
-    cdpEndpoint: options?.cdpEndpoint,
-    profileDir: options?.profileDir,
+  let aweme: DouyinAwemeItem | null = null;
+
+  // 1. 优先尝试免登录纯内存匿名解析（零 Cookie / 零 Profile）
+  const [publicErr, publicAweme] = await tryit(fetchPublicAwemeItem)(urlOrId, {
+    customExtractor: options?.customExtractor,
     customTransport: options?.customTransport,
+    cdpEndpoint: options?.cdpEndpoint,
   });
 
-  try {
-    const match = urlOrId.match(/(?:video\/|note\/|modal_id=)(\d+)/);
-    const awemeId = match?.[1] ?? urlOrId.replace(/\D/g, "");
-    const aweme = await fetchAwemeDetail(bridge, awemeId || urlOrId);
+  if (!publicErr && publicAweme && (publicAweme.id || publicAweme.desc)) {
+    aweme = publicAweme;
+  }
 
-    let transcript: string | undefined;
-    let ocrContent: string | undefined;
+  // 2. 若匿名提取失败或未命中，平滑降级回退至同源桥接器
+  if (!aweme) {
+    const bridge = openBrowserBridge({
+      cdpEndpoint: options?.cdpEndpoint,
+      profileDir: options?.profileDir,
+      customTransport: options?.customTransport,
+    });
 
-    if (aweme.mediaType === "video") {
-      const transcriber = options?.customTranscribe ?? createAudioTranscriber();
-      const videoSource = aweme.videoPlayUrl || aweme.shareUrl;
-      if (videoSource) {
-        const [transcribeErr, res] = await tryit(transcriber)(videoSource);
-        if (!transcribeErr && res && res.trim()) {
-          transcript = res.trim();
-        }
-      }
-    } else if (aweme.mediaType === "gallery" && aweme.imageUrls && aweme.imageUrls.length > 0) {
-      if (options?.customOcr) {
-        const [ocrErr, res] = await tryit(options.customOcr)(aweme.imageUrls);
-        if (!ocrErr && res && res.trim()) {
-          ocrContent = res.trim();
-        }
+    try {
+      const match = urlOrId.match(/(?:video\/|note\/|modal_id=)(\d+)/);
+      const awemeId = match?.[1] ?? urlOrId.replace(/\D/g, "");
+      aweme = await fetchAwemeDetail(bridge, awemeId || urlOrId);
+    } finally {
+      await closeBrowserBridge(bridge);
+    }
+  }
+
+  let transcript: string | undefined;
+  let ocrContent: string | undefined;
+
+  if (aweme.mediaType === "video") {
+    const transcriber = options?.customTranscribe ?? createAudioTranscriber();
+    const videoSource = aweme.videoPlayUrl || aweme.shareUrl;
+    if (videoSource) {
+      const [transcribeErr, res] = await tryit(transcriber)(videoSource);
+      if (!transcribeErr && res && res.trim()) {
+        transcript = res.trim();
       }
     }
-
-    return { aweme, transcript, ocrContent };
-  } finally {
-    await closeBrowserBridge(bridge);
+  } else if (aweme.mediaType === "gallery" && aweme.imageUrls && aweme.imageUrls.length > 0) {
+    const ocrFn =
+      options?.customOcr ??
+      ((imgs: string[]) =>
+        ocrGallery(imgs, {
+          baseUrl: options?.magpieBaseUrl,
+          apiKey: options?.magpieApiKey,
+          model: options?.magpieModel,
+          customFetcher: options?.customFetcher,
+        }));
+    const [ocrErr, res] = await tryit(ocrFn)(aweme.imageUrls);
+    if (!ocrErr && res && res.trim()) {
+      ocrContent = res.trim();
+    }
   }
+
+  return { aweme, transcript, ocrContent };
 }
