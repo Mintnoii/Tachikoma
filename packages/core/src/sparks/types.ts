@@ -12,7 +12,7 @@ export { SPARK_CORE_CLUSTERS };
 export type { SparkCoreCluster, SparkCluster };
 
 /**
- * Tachikoma 战术军械库核心 MOC 领域定义（4+1 架构兼容别名）
+ * Tachikoma 战术灵感核心 MOC 领域定义（4+1 架构兼容别名）
  */
 export const GHOST_CLUSTERS = SPARK_CORE_CLUSTERS;
 export type GhostCluster = SparkCluster;

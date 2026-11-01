@@ -458,12 +458,12 @@ test("Tachikoma Tactical Sparks: Pipeline, CLI & Ghost Promotion Comprehensive T
     });
 
     await t.test("formatClusterLabel formats friendly Chinese aliases for 6+1 MOCs", () => {
-      assert.equal(formatClusterLabel("soul"), "soul·灵魂避难所");
-      assert.equal(formatClusterLabel("literature"), "literature·文墨与回响");
-      assert.equal(formatClusterLabel("life"), "life·日常与烟火");
-      assert.equal(formatClusterLabel("arsenal"), "arsenal·赛博军械库");
-      assert.equal(formatClusterLabel("meme"), "meme·赛博解构槽");
-      assert.equal(formatClusterLabel("sparks"), "sparks·思维火花");
+      assert.equal(formatClusterLabel("soul"), "明心见性");
+      assert.equal(formatClusterLabel("literature"), "咬文嚼字");
+      assert.equal(formatClusterLabel("life"), "人间烟火");
+      assert.equal(formatClusterLabel("arsenal"), "实用工具库");
+      assert.equal(formatClusterLabel("meme"), "熬夜背梗");
+      assert.equal(formatClusterLabel("sparks"), "有趣却无用");
       assert.equal(formatClusterLabel("custom/infra"), "custom/infra·自适应主题簇");
       assert.equal(formatClusterLabel("CLI神器"), "CLI神器");
       assert.equal(formatClusterLabel(undefined), "");

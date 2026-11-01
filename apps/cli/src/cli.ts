@@ -105,7 +105,7 @@ export function extractContentSummary(
 }
 
 /**
- * 单条抖音链接内部消化纯函数：转为 Sparks 战术灵感录入 SQLite 军械库（不污染 Ghost 收藏夹）
+ * 单条抖音链接内部消化纯函数：转为 Sparks 灵感录入 SQLite（不污染 Ghost 收藏夹）
  */
 export async function ingestDouyinToSparks(
   url: string,
@@ -176,7 +176,7 @@ program
   .description("Tachikoma 统一多模态情报摄入引擎")
   .version("0.1.0");
 
-// 注册战术灵感军械库子命令体系
+// 注册 Sparks 灵感子命令体系
 registerSparkCommands(program);
 
 program
@@ -199,7 +199,7 @@ program
     );
 
     if (isDouyin) {
-      console.log(pc.cyan(`[Tachikoma] 检测到单条抖音链接，转入战术灵感军械库: ${url}`));
+      console.log(pc.cyan(`[Tachikoma] 检测到单条抖音链接，转入 Sparks 灵感流: ${url}`));
       const sparksDbPath = options.sparksDb
         ? resolve(paths.rootDir, options.sparksDb)
         : paths.sparksDbPath;
@@ -213,7 +213,7 @@ program
       }
 
       const { record, aweme, summary, keyPoints } = res;
-      console.log(pc.green(`⚡ [Tachikoma] 单条抖音灵感已录入随身军械库 (未污染 Ghost 收藏夹)`));
+      console.log(pc.green(`⚡ [Tachikoma] 单条抖音灵感已收录 (未污染 Ghost 收藏夹)`));
       console.log(`  ID:     ${record.id}`);
       console.log(`  标题:   ${record.title}`);
       console.log(`  作者:   ${aweme.author.nickname}`);

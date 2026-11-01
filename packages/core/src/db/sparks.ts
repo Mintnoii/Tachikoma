@@ -143,7 +143,7 @@ export function rowToSparkRecord(row: SparkRow): SparkRecord {
 }
 
 /**
- * 打开并初始化 Sparks 战术军械库数据库连接
+ * 打开并初始化 Sparks 数据库连接
  */
 export function openSparksDb(dbPath: string = ":memory:"): DatabaseSync {
   let db: DatabaseSync;

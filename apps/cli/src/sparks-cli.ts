@@ -55,12 +55,12 @@ export function parseTagsInput(rawTags?: string[] | string): string[] {
  * 核心 MOC 领域友好中文别名映射
  */
 export const SPARK_CLUSTER_ALIASES: Record<string, string> = {
-  soul: "soul·灵魂避难所",
-  literature: "literature·文墨与回响",
-  life: "life·日常与烟火",
-  arsenal: "arsenal·赛博军械库",
-  meme: "meme·赛博解构槽",
-  sparks: "sparks·思维火花",
+  soul: "明心见性",
+  literature: "咬文嚼字",
+  life: "人间烟火",
+  arsenal: "实用工具库",
+  meme: "熬夜背梗",
+  sparks: "有趣却无用",
 };
 
 /**
@@ -96,7 +96,7 @@ export function resolveDbPath(customPath?: string): string {
 export function registerSparkCommands(program: Command): Command {
   const spark = program
     .command("spark")
-    .description("战术灵感军械库录入、检索与自然演化管理");
+    .description("Sparks 灵感录入、检索与自然演化管理");
 
   // 1. tachikoma spark <target> (默认录入子命令)
   spark
@@ -213,7 +213,7 @@ export function registerSparkCommands(program: Command): Command {
           return;
         }
 
-        console.log(`✨ Tachikoma 战术灵感军械库 (共 ${records.length} 条记录):`);
+        console.log(`✨ Tachikoma Sparks 灵感清单 (共 ${records.length} 条记录):`);
         console.log(pc.dim("─".repeat(70)));
         const rendered = records
           .map((item) => {

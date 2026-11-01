@@ -24,12 +24,12 @@ const VALID_SPARK_TYPES = new Set<SparkType>([
 
 /**
  * 规范化归属的核心战术领域至 Tachikoma 6+1 核心领域之一
- * - soul: 灵魂避难所 (哲学心性/修心/内心宁静/命运思考)
- * - literature: 文墨与回响 (唯美句子/文艺文案/诗意/浪漫/电影台词)
- * - life: 日常与烟火 (生活方式/美食咖啡/家居器物/宠物/松弛感日常)
- * - arsenal: 赛博军械库 (开源项目/CLI工具/黑科技)
- * - meme: 赛博解构槽 (梗图/搞笑段子/幽默吐槽)
- * - sparks: 思维火花 (灵感洞察/产品巧思/商业直觉)
+ * - soul: 明心见性 (修心/觉察/哲学心性/内心宁静/命运思考)
+ * - literature: 咬文嚼字 (唯美句子/文艺文案/诗意/浪漫/电影台词)
+ * - life: 人间烟火 (生活方式/美食咖啡/家居器物/宠物/松弛感日常)
+ * - arsenal: 实用工具库 (开源项目/CLI工具/黑科技/生产力工具)
+ * - meme: 熬夜背梗 (梗图/搞笑段子/幽默吐槽)
+ * - sparks: 有趣却无用 (突发奇想/灵感火花/灵感洞察/产品巧思)
  * - custom/<slug>: 涌现主题簇
  */
 export function normalizeSparkCluster(rawCluster?: string): SparkCluster {
@@ -42,7 +42,7 @@ export function normalizeSparkCluster(rawCluster?: string): SparkCluster {
     return cleaned;
   }
 
-  // 1. soul (灵魂避难所 / 哲学心性 / 修心 / 内心宁静 / 命运思考)
+  // 1. soul (明心见性 / 哲学心性 / 修心 / 内心宁静 / 命运思考)
   if (
     cleaned === "psychology" ||
     cleaned.includes("soul") ||
@@ -55,6 +55,9 @@ export function normalizeSparkCluster(rawCluster?: string): SparkCluster {
     cleaned.includes("心性") ||
     cleaned.includes("命运") ||
     cleaned.includes("禅") ||
+    cleaned.includes("明心") ||
+    cleaned.includes("见性") ||
+    cleaned.includes("觉察") ||
     cleaned.includes("宁静") ||
     cleaned.includes("平静") ||
     cleaned.includes("灵魂") ||
@@ -63,7 +66,7 @@ export function normalizeSparkCluster(rawCluster?: string): SparkCluster {
     return "soul";
   }
 
-  // 2. literature (文墨与回响 / 唯美句子 / 文艺文案 / 诗意 / 浪漫 / 电影台词)
+  // 2. literature (咬文嚼字 / 唯美句子 / 文艺文案 / 诗意 / 浪漫 / 电影台词)
   if (
     cleaned.includes("literature") ||
     cleaned.includes("literary") ||
@@ -73,6 +76,7 @@ export function normalizeSparkCluster(rawCluster?: string): SparkCluster {
     cleaned.includes("文学") ||
     cleaned.includes("文墨") ||
     cleaned.includes("回响") ||
+    cleaned.includes("咬文嚼字") ||
     cleaned.includes("唯美") ||
     cleaned.includes("文艺") ||
     cleaned.includes("文案") ||
@@ -85,13 +89,14 @@ export function normalizeSparkCluster(rawCluster?: string): SparkCluster {
     return "literature";
   }
 
-  // 3. life (日常与烟火 / 生活方式 / 美食咖啡 / 家居器物 / 宠物 / 松弛感日常)
+  // 3. life (人间烟火 / 生活方式 / 美食咖啡 / 家居器物 / 宠物 / 松弛感日常)
   if (
     cleaned.includes("life") ||
     cleaned.includes("coffee") ||
     cleaned.includes("lifestyle") ||
     cleaned.includes("日常") ||
     cleaned.includes("烟火") ||
+    cleaned.includes("人间") ||
     cleaned.includes("生活") ||
     cleaned.includes("美食") ||
     cleaned.includes("咖啡") ||
@@ -103,7 +108,7 @@ export function normalizeSparkCluster(rawCluster?: string): SparkCluster {
     return "life";
   }
 
-  // 4. arsenal (赛博军械库 / 战术装备 / 神兵利器 / CLI黑科技 / 开源库)
+  // 4. arsenal (实用工具库 / 战术装备 / 神兵利器 / CLI黑科技 / 开源库)
   if (
     cleaned === "tools" ||
     cleaned === "tool" ||
@@ -114,13 +119,13 @@ export function normalizeSparkCluster(rawCluster?: string): SparkCluster {
     cleaned.includes("工具") ||
     cleaned.includes("利器") ||
     cleaned.includes("装备") ||
-    cleaned.includes("军械") ||
+    cleaned.includes("实用") ||
     cleaned.includes("开源")
   ) {
     return "arsenal";
   }
 
-  // 5. meme (赛博解构槽 / 梗图 / 段子 / 幽默吐槽 / 表情包)
+  // 5. meme (熬夜背梗 / 赛博解构槽 / 梗图 / 段子 / 幽默吐槽 / 表情包)
   if (
     cleaned.includes("meme") ||
     cleaned.includes("joke") ||
@@ -128,12 +133,13 @@ export function normalizeSparkCluster(rawCluster?: string): SparkCluster {
     cleaned.includes("段子") ||
     cleaned.includes("吐槽") ||
     cleaned.includes("表情包") ||
+    cleaned.includes("熬夜") ||
     cleaned.includes("幽默")
   ) {
     return "meme";
   }
 
-  // 6. sparks (思维火花 / 灵感洞察 / 产品巧思 / 商业直觉)
+  // 6. sparks (有趣却无用 / 思维火花 / 灵感洞察 / 产品巧思 / 商业直觉)
   if (
     cleaned === "cognition" ||
     cleaned === "finance" ||
@@ -147,6 +153,8 @@ export function normalizeSparkCluster(rawCluster?: string): SparkCluster {
     cleaned.includes("认知") ||
     cleaned.includes("哲学") ||
     cleaned.includes("火花") ||
+    cleaned.includes("有趣") ||
+    cleaned.includes("无用") ||
     cleaned.includes("灵感") ||
     cleaned.includes("洞察") ||
     cleaned.includes("巧思") ||
@@ -203,24 +211,24 @@ export function cleanJsonOutput(raw: string): string {
 }
 
 /**
- * Tachikoma 战术军械库 6+1 MOC 体系对齐的战术灵感提纯系统提示词
+ * Tachikoma 碎片灵感 6+1 MOC 体系对齐的灵感提纯系统提示词
  */
-export const SPARK_DISTILL_SYSTEM_PROMPT = `你是一个 Tachikoma 战术军械库与灵感提纯专家。
+export const SPARK_DISTILL_SYSTEM_PROMPT = `你是一个 Tachikoma 碎片灵感提纯专家。
 将用户输入的碎片灵感、金句、工具或随笔提纯为结构化 JSON 格式，严格符合以下契约：
 {
   "title": "精炼的一句话标题（不超过 30 字，若有原作者或出处可在末尾注明，如「... —— 某某」）",
   "type": "正交类别，必须严格为以下 5 种之一: quote | tool | joke | meme | fleeting",
-  "cluster": "归属的核心战术领域，必须严格在以下 6 大核心领域中精准单选: soul | literature | life | arsenal | meme | sparks",
+  "cluster": "归属的核心领域，必须严格在以下 6 大核心领域中精准单选: soul | literature | life | arsenal | meme | sparks",
   "tags": ["#高维标签1", "#高维标签2"]
 }
 
-【核心战术领域 (Sparks MOCs 6+1) 映射指南】
-- soul: 灵魂避难所 / 哲学心性 / 修心 / 内心宁静 / 命运思考 / 心理自洽（高维标签推荐: #修行、#内心平静、#心性、#命运思考）
-- literature: 文墨与回响 / 唯美句子 / 文艺文案 / 诗意 / 浪漫 / 电影台词 / 小说金句（高维标签推荐: #唯美句子、#文艺、#诗意、#浪漫、#电影台词）
-- life: 日常与烟火 / 生活方式 / 美食咖啡 / 家居器物 / 宠物 / 松弛感日常 / 市井烟火（高维标签推荐: #生活方式、#手冲咖啡、#日常、#松弛感）
-- arsenal: 赛博军械库 / 战术装备 / 神兵利器 / CLI黑科技 / 开源库 / 生产力开发工具（高维标签推荐: #CLI、#Rust、#开发利器、#开源工具）
-- meme: 赛博解构槽 / 梗图 / 段子 / 幽默吐槽 / 表情包 / 荒诞讽刺（高维标签推荐: #段子、#梗图、#幽默吐槽）
-- sparks: 思维火花 / 灵感洞察 / 产品巧思 / 商业直觉 / 底层逻辑 / 元认知随想（高维标签推荐: #认知、#思考、#思维模型、#灵感、#商业直觉）
+【核心领域 (Sparks MOCs 6+1) 映射指南】
+- soul: 明心见性 / 哲学心性 / 修心 / 内心宁静 / 命运思考 / 觉察与心理自洽（高维标签推荐: #明心见性、#修行、#内心平静、#心性、#命运思考）
+- literature: 咬文嚼字 / 唯美句子 / 文艺文案 / 诗意 / 浪漫 / 电影台词 / 小说金句（高维标签推荐: #咬文嚼字、#唯美句子、#文艺、#诗意、#浪漫、#电影台词）
+- life: 人间烟火 / 生活方式 / 美食咖啡 / 家居器物 / 宠物 / 松弛感日常 / 市井烟火（高维标签推荐: #人间烟火、#生活方式、#手冲咖啡、#日常、#松弛感）
+- arsenal: 实用工具库 / 战术装备 / 神兵利器 / CLI黑科技 / 开源库 / 生产力开发工具（高维标签推荐: #实用工具库、#CLI、#Rust、#开发利器、#开源工具）
+- meme: 熬夜背梗 / 梗图 / 段子 / 幽默吐槽 / 表情包 / 荒诞讽刺（高维标签推荐: #熬夜背梗、#段子、#梗图、#幽默吐槽）
+- sparks: 有趣却无用 / 思维火花 / 灵感洞察 / 产品巧思 / 商业直觉 / 底层逻辑 / 元认知随想（高维标签推荐: #有趣却无用、#认知、#思考、#思维模型、#灵感、#商业直觉）
 
 【极度克制提纯守则】
 1. tags 严格限制在 2~3 个最具穿透力的高维标签（如 ["#修行", "#内心平静"] 或 ["#唯美句子", "#浪漫"] 或 ["#CLI", "#Rust"]），严禁无脑分词、碎词堆砌！每个标签必须以 # 开头。
