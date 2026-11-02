@@ -17,7 +17,6 @@ import {
   createSpark,
   extractDouyinUrlOrId,
   SparkRecord,
-  tachikomaReporter,
 } from "@tachikoma/core";
 import { tryit, sift, unique } from "radash";
 import { registerSparkCommands } from "./sparks-cli.js";
@@ -181,9 +180,9 @@ program
 registerSparkCommands(program);
 
 program
-  .command("ingest")
-  .alias("capture")
+  .command("capture")
   .alias("cap")
+  .alias("ingest") // 保持向后兼容，但推荐 capture
   .description("捕获单个网页、微信文章、X(Twitter)推文或单条抖音视频")
   .argument("<url>", "目标资源 URL")
   .option("-o, --output <dir>", "输出存储目录", "Ghost/_raw")
@@ -207,17 +206,9 @@ program
         ? resolve(paths.rootDir, options.sparksDb)
         : paths.sparksDbPath;
 
-      const [err, res] = await tryit(async () => {
-        return await tachikomaReporter.step(
-          "tachikoma_douyin_spark",
-          async () => await ingestDouyinToSparks(url, { sparksDbPath }),
-          {
-            title: "单条抖音灵感摄入",
-            gesture: "fetch",
-            metadata: { url, sparksDbPath },
-          }
-        );
-      })();
+      const [err, res] = await tryit(ingestDouyinToSparks)(url, {
+        sparksDbPath,
+      });
 
       if (err || !res) {
         return reportCliError(`抖音摄入失败: ${err?.message ?? "未知错误"}`);
@@ -239,17 +230,7 @@ program
       console.log(pc.dim(`  提示:   未来可通过 "tachikoma spark promote ${record.id}" 自主升格至 Ghost 知识库`));
     } else {
       console.log(pc.cyan(`[Tachikoma] 开始捕获: ${url} -> ${outputDir}`));
-      const [err, res] = await tryit(async () => {
-        return await tachikomaReporter.step(
-          "tachikoma_web_clip",
-          async () => await clipUrl(url, { outputDir }),
-          {
-            title: "网页抓取与正文清洗",
-            gesture: "fetch",
-            metadata: { url, outputDir },
-          }
-        );
-      })();
+      const [err, res] = await tryit(clipUrl)(url, { outputDir });
 
       if (err) {
         return reportCliError(`网页捕获失败: ${err.message}`);
