@@ -1,6 +1,7 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 import { sift, tryit } from "radash";
 import { toPosixPath } from "@tachikoma/core";
+import { DouyinExtractionError } from "./errors.js";
 
 export type CustomTransport = (path: string, params?: Record<string, unknown>) => Promise<any>;
 
@@ -10,6 +11,7 @@ export interface BrowserBridgeOptions {
   headless?: boolean;
   homepageUrl?: string;
   customTransport?: CustomTransport; // 支持测试环境沙盒注入模拟请求
+  customPage?: Page; // 支持测试沙盒页面注入
 }
 
 export interface BrowserBridge {
@@ -29,7 +31,7 @@ async (requestUrl) => {
     xhr.timeout = 30000;
     xhr.onload = () => {
       try {
-        resolve({ ok: true, status: xhr.status, data: JSON.parse(xhr.responseText) });
+        resolve({ ok: true, status: xhr.status, data: JSON.parse(xhr.responseText), error: "" });
       } catch (err) {
         resolve({ ok: false, status: xhr.status, error: String(err), raw: xhr.responseText });
       }
@@ -61,6 +63,10 @@ export const openBrowserBridge = (options: BrowserBridgeOptions = {}): BrowserBr
    * 初始化浏览器上下文与同源会话页（基于 Promise 单飞防重，杜绝 busy-wait 游标循环）
    */
   const ensurePage = async (): Promise<Page> => {
+    if (opts.customPage) {
+      return opts.customPage;
+    }
+
     if (page && !page.isClosed()) {
       return page;
     }
@@ -126,6 +132,7 @@ export const openBrowserBridge = (options: BrowserBridgeOptions = {}): BrowserBr
     );
     const queryString = new URLSearchParams(queryEntries).toString();
     const fullPath = queryString ? `${path}?${queryString}` : path;
+    const attemptKey = `bridge:${fullPath}`;
 
     const [err, res] = await tryit(activePage.evaluate.bind(activePage))(
       IN_PAGE_XHR_SCRIPT,
@@ -133,20 +140,43 @@ export const openBrowserBridge = (options: BrowserBridgeOptions = {}): BrowserBr
     );
 
     if (err) {
-      throw new Error(`[BrowserBridge] 页面 XHR 执行异常: ${err.message}`);
+      throw new DouyinExtractionError(
+        "bridge-empty",
+        `[BrowserBridge] 页面 XHR 执行异常 (path=${path}): ${err.message}`,
+        { attempts: [attemptKey], cause: err }
+      );
+    }
+
+    if (res === undefined || res === null || typeof res !== "object") {
+      throw new DouyinExtractionError(
+        "bridge-empty",
+        `[BrowserBridge] 页面 evaluate 返回值为空或非对象 (path=${path}, params=${JSON.stringify(params)})`,
+        { attempts: [attemptKey] }
+      );
     }
 
     const payload = res as {
-      ok: boolean;
-      status: number;
+      ok?: unknown;
+      status?: unknown;
       data?: T;
       error?: string;
       raw?: string;
     };
 
+    if (typeof payload.ok !== "boolean" || typeof payload.status !== "number") {
+      throw new DouyinExtractionError(
+        "bridge-empty",
+        `[BrowserBridge] 页面 XHR 返回不符合契约结构 (path=${path}, params=${JSON.stringify(params)})`,
+        { attempts: [attemptKey] }
+      );
+    }
+
     if (!payload.ok) {
-      throw new Error(
-        `[BrowserBridge] 接口响应失败 (status=${payload.status}): ${payload.error || payload.raw}`
+      const reason = payload.status === 403 ? "api-forbidden" : "bridge-empty";
+      throw new DouyinExtractionError(
+        reason,
+        `[BrowserBridge] 接口响应失败 (status=${payload.status}, path=${path}): ${payload.error || payload.raw || "未知错误"}`,
+        { attempts: [attemptKey] }
       );
     }
 

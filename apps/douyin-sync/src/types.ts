@@ -1,5 +1,17 @@
 import { AuthorInfo, MediaType } from "@tachikoma/core";
 
+export type DouyinExtractionSource =
+  | "ssr"
+  | "render-data"
+  | "in-page-xhr"
+  | "dom"
+  | "authed-session";
+
+export type DouyinExtractionConfidence =
+  | "high"
+  | "dom-fallback"
+  | "authed-session";
+
 export interface DouyinAuthor {
   uid: string;
   secUid: string;
@@ -23,6 +35,8 @@ export interface DouyinAwemeItem {
     shareCount?: number;
   };
   raw?: Record<string, unknown>;
+  source?: DouyinExtractionSource;
+  confidence?: DouyinExtractionConfidence;
 }
 
 export interface DouyinCollectionFolder {

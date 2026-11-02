@@ -9,6 +9,10 @@ import {
   fetchPublicAwemeItem,
   createAudioTranscriber,
   DouyinAwemeItem,
+  DouyinExtractionError,
+  resolveDouyinProfileDir,
+  hasDouyinSession,
+  loginInteractively,
 } from "@tachikoma/douyin-sync";
 import {
   getTachikomaWorkspacePaths,
@@ -23,6 +27,33 @@ import { registerSparkCommands } from "./sparks-cli.js";
 
 function reportCliError(msg: string): void {
   console.error(pc.red(`[Tachikoma] ${msg}`));
+  process.exitCode = 1;
+}
+
+function handleDouyinError(err: unknown, showLoginHint = false): void {
+  if (
+    err instanceof DouyinExtractionError ||
+    (err && (err as any).name === "DouyinExtractionError")
+  ) {
+    const extractionErr = err as DouyinExtractionError;
+    console.error(pc.red(`[Tachikoma] 抖音摄入失败: ${extractionErr.message}`));
+    console.error(pc.yellow(`  失败原因 (reason):   ${extractionErr.reason}`));
+    if (extractionErr.attempts && extractionErr.attempts.length > 0) {
+      console.error(pc.yellow(`  已尝试路径 (attempts):`));
+      extractionErr.attempts.forEach((att) =>
+        console.error(pc.yellow(`    • ${att}`))
+      );
+    }
+  } else {
+    console.error(
+      pc.red(`[Tachikoma] 抖音摄入失败: ${(err as any)?.message ?? "未知错误"}`)
+    );
+  }
+  if (showLoginHint) {
+    console.error(
+      pc.yellow(`  未检测到登录态，可执行 "tachikoma douyin login" 建立登录态`)
+    );
+  }
   process.exitCode = 1;
 }
 
@@ -91,15 +122,13 @@ export function extractContentSummary(
   const maxPoints = options?.maxPoints ?? 5;
   const keyPoints = uniquePoints.slice(0, maxPoints);
 
-  let summary = "";
-  if (keyPoints.length > 0) {
-    summary = keyPoints.slice(0, 2).join("；");
-    if (summary.length > 100) {
-      summary = summary.slice(0, 97) + "...";
+  const summary = (() => {
+    if (keyPoints.length > 0) {
+      const raw = keyPoints.slice(0, 2).join("；");
+      return raw.length > 100 ? `${raw.slice(0, 97)}...` : raw;
     }
-  } else if (cleaned.length > 0) {
-    summary = cleaned.slice(0, 80);
-  }
+    return cleaned.length > 0 ? cleaned.slice(0, 80) : "";
+  })();
 
   return { summary, keyPoints };
 }
@@ -206,28 +235,80 @@ program
         ? resolve(paths.rootDir, options.sparksDb)
         : paths.sparksDbPath;
 
+      // 1. 优先尝试免登录纯内存匿名提取（零 Profile 目录）
       const [err, res] = await tryit(ingestDouyinToSparks)(url, {
         sparksDbPath,
       });
 
-      if (err || !res) {
-        return reportCliError(`抖音摄入失败: ${err?.message ?? "未知错误"}`);
+      // 2. 匿名提取失败时的登录态通道自动兜底
+      const finalRes = await (async () => {
+        if (!err && res) {
+          return res;
+        }
+
+        const profileDir = resolveDouyinProfileDir();
+        const sessionStatus = await hasDouyinSession(profileDir);
+
+        if (sessionStatus === "authed") {
+          console.log(
+            pc.yellow(
+              `[Tachikoma] 匿名解析未命中，检测到本机有效登录态，自动兜底重试...`
+            )
+          );
+          const [retryErr, retryRes] = await tryit(ingestDouyinToSparks)(url, {
+            sparksDbPath,
+            profileDir,
+          });
+          if (retryErr || !retryRes) {
+            handleDouyinError(retryErr);
+            return null;
+          }
+          return retryRes;
+        }
+
+        handleDouyinError(err, true);
+        return null;
+      })();
+
+      if (!finalRes) {
+        return;
       }
 
-      const { record, aweme, summary, keyPoints } = res;
+      const { record, aweme, summary, keyPoints } = finalRes;
       console.log(pc.green(`⚡ [Tachikoma] 单条抖音灵感已收录 (未污染 Ghost 收藏夹)`));
       console.log(`  ID:     ${record.id}`);
       console.log(`  标题:   ${record.title}`);
       console.log(`  作者:   ${aweme.author.nickname}`);
       console.log(`  媒介:   ${aweme.mediaType === "gallery" ? "图集" : "视频"}`);
       console.log(`  标签:   ${record.tags.join(" ")}`);
+      if (aweme.source) {
+        console.log(`  来源:   ${aweme.source}`);
+      }
+      if (
+        aweme.confidence === "authed-session" ||
+        aweme.source === "authed-session"
+      ) {
+        console.log(pc.cyan(`  数据来源: 数据来自登录态会话`));
+      } else if (aweme.confidence === "dom-fallback") {
+        console.log(
+          pc.yellow(
+            `  ⚠️  注意:   提取结果来自 DOM 兜底，正文可能不完整，建议后续 spark distill 补齐`
+          )
+        );
+      }
       if (summary) {
         console.log(`  摘要:   ${summary}`);
       }
       if (keyPoints && keyPoints.length > 0) {
-        console.log(`  核心要点:\n${keyPoints.map((point) => `    • ${point}`).join("\n")}`);
+        console.log(
+          `  核心要点:\n${keyPoints.map((point) => `    • ${point}`).join("\n")}`
+        );
       }
-      console.log(pc.dim(`  提示:   未来可通过 "tachikoma spark promote ${record.id}" 自主升格至 Ghost 知识库`));
+      console.log(
+        pc.dim(
+          `  提示:   未来可通过 "tachikoma spark promote ${record.id}" 自主升格至 Ghost 知识库`
+        )
+      );
     } else {
       console.log(pc.cyan(`[Tachikoma] 开始捕获: ${url} -> ${outputDir}`));
       const [err, res] = await tryit(clipUrl)(url, { outputDir });
@@ -239,12 +320,49 @@ program
     }
   });
 
+// 抖音登录态通道子命令体系
+const douyinCmd = program
+  .command("douyin")
+  .description("抖音登录态会话与同步工具");
+
+douyinCmd
+  .command("status")
+  .description("查询抖音持久化会话登录态 (authed / anonymous)")
+  .action(async () => {
+    const profileDir = resolveDouyinProfileDir();
+    const status = await hasDouyinSession(profileDir);
+    console.log(status);
+  });
+
+douyinCmd
+  .command("login")
+  .description("交互式登录抖音并建立持久化会话")
+  .action(async () => {
+    const profileDir = resolveDouyinProfileDir();
+    console.log(pc.cyan(`[Tachikoma] 启动抖音交互式登录窗口...`));
+    console.log(`  Profile 路径: ${profileDir}`);
+    const [err, status] = await tryit(loginInteractively)(profileDir);
+    if (err || status !== "authed") {
+      return reportCliError(`登录失败或已超时: ${err?.message ?? status}`);
+    }
+    console.log(pc.green(`[Tachikoma] 登录成功: ${status}`));
+    console.log(`  Profile 路径: ${profileDir}`);
+  });
+
 program
   .command("sync")
   .description("增量轮询抖音收藏夹并自动对账转录")
   .option("-o, --output <dir>", "输出存储目录", "Ghost/_raw")
   .option("-c, --collect-id <id>", "指定单个收藏夹 ID 同步")
   .action(async (options: { output?: string; collectId?: string }) => {
+    const profileDir = resolveDouyinProfileDir();
+    const sessionStatus = await hasDouyinSession(profileDir);
+    if (sessionStatus !== "authed") {
+      return reportCliError(
+        '未检测到有效抖音登录态，请先执行 "tachikoma douyin login" 建立登录态'
+      );
+    }
+
     const paths = getTachikomaWorkspacePaths();
     const outputDir =
       options.output && options.output !== "Ghost/_raw"
@@ -258,6 +376,7 @@ program
       sqlitePath: resolve(outputDir, ".cache/sync.db"),
       collectId: options.collectId,
       customTranscribe: audioTranscriber,
+      profileDir,
     });
     if (err) {
       return reportCliError(`同步失败: ${err.message}`);

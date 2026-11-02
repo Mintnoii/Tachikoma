@@ -17,3 +17,6 @@ apps/douyin-sync/config/cookies.json
 # Rust 构建产物
 packages/guard/target/
 
+
+# 抖音登录态专用 profile（绝不进版本库）
+.secrets/
