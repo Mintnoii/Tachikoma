@@ -57,6 +57,51 @@ export function formatToRFC2026Markdown(result: IngestionResult): {
   return { markdown, sha256, frontmatter };
 }
 
+const stripTrailingDotsAndSpaces = (val: string): string =>
+  val.replace(/[.\s]+$/, "");
+
+const stripTrailingMd = (val: string): string => {
+  const cleaned = stripTrailingDotsAndSpaces(val);
+  const withoutMd = cleaned.replace(/\.md$/i, "");
+  return withoutMd === cleaned ? cleaned : stripTrailingMd(withoutMd);
+};
+
+/**
+ * 将任意标题规范化为安全的文件名主干（不含扩展名）
+ *
+ * 规范化规则：
+ * 1. 替换 Windows/Unix 非法字符 [\\/:*?"<>|] 为下划线 "_"
+ * 2. 剥掉结尾的 "." 与空格（可递归清洗）
+ * 3. 剥掉结尾一层或多层 ".md"（大小写不敏感，如 .MD、.md.md），剥完后再次清理结尾 "." 和空格
+ * 4. 截断至 80 字符，并在截断后再次清理末尾残留的 "." 与空格
+ * 5. 若清洗后为空字符串，则安全回退为 "untitled"
+ *
+ * @example
+ * // 1. 标题以 .md 结尾：剥除末尾 .md，避免文件名生成为 .md.md 导致 Ghost wikilink 断链
+ * toSafeFileTitle("JetBrains 开源 ThinkRail：给 pi Agent 配 worktree 和活的 SPEC.md")
+ * // => "JetBrains 开源 ThinkRail：给 pi Agent 配 worktree 和活的 SPEC"
+ *
+ * @example
+ * // 2. 标题以点或空格结尾：剥除末尾非法字符，避免 Windows 文件系统非法命名
+ * toSafeFileTitle("Save As...")
+ * // => "Save As"
+ *
+ * @example
+ * // 3. 超长标题：截断至 80 字符并清理截断边界残留的符号与空白
+ * toSafeFileTitle("Building a Super Intelligent Autonomous Multi-Agent Framework from Scratch with TypeScript and Rust: Architectural Patterns, Lessons Learned, and Best Practices")
+ * // => "Building a Super Intelligent Autonomous Multi-Agent Framework from Scratch with"
+ *
+ * @param title 原始输入标题
+ * @returns 规范化的安全文件名主干（不含扩展名）
+ */
+export function toSafeFileTitle(title?: string | null): string {
+  const sanitized = (title || "").replace(/[\\/:*?"<>|]/g, "_").trim();
+  const withoutMd = stripTrailingMd(sanitized);
+  const truncated = withoutMd.slice(0, 80);
+  const cleaned = stripTrailingMd(truncated);
+  return cleaned || "untitled";
+}
+
 /**
  * 将摄入结果持久化至目标目录（沙盒或 Ghost/_raw/<category>/）
  */
@@ -67,12 +112,7 @@ export async function persistIngestionResult(
 ): Promise<{ filePath: string; sha256: string }> {
   const { markdown, sha256 } = formatToRFC2026Markdown(result);
 
-  // 安全化文件名，去除非法字符
-  const sanitizedTitle = result.title
-    .replace(/[\\/:*?"<>|]/g, "_")
-    .trim()
-    .slice(0, 80);
-  const fileName = `${sanitizedTitle || "untitled"}.md`;
+  const fileName = `${toSafeFileTitle(result.title)}.md`;
   const targetPath = toPosixPath(join(outputRootDir, category, fileName));
 
   const [mkdirErr] = await tryit(mkdir)(dirname(targetPath), { recursive: true });
