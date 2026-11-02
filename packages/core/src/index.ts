@@ -7,6 +7,7 @@ export * from "./db/index.js";
 export * from "./sparks/index.js";
 export * from "./workspace.js";
 export * from "./browser.js";
+export * from "./telemetry.js";
 export * from "./utils/index.js";
 
 
