@@ -69,6 +69,7 @@ Tachikoma/ (pnpm Monorepo)
 - **`ssr-no-item`**：页面 SSR 变量与 RENDER_DATA 均未包含有效作品数据对象；
 - **`bridge-empty`**：同源桥接器（`BrowserBridge`）执行结果未通过契约收窄（返回值为空、非对象或缺失契约字段）；
 - **`api-forbidden`**：页内 XHR 或同源接口返回 HTTP 403 被平台反爬拦截；
+- **`images-filtered`**：详情接口按请求上下文过滤图文作品（`filter_detail.filter_reason = images_base`），作品通常并未下架；
 - **`dom-fallback-empty`**：所有结构化数据提取全线落空，且 DOM/og 兜底提取亦无实质有效正文。
 
 ### 4.2 诊断与置信度契约
@@ -76,7 +77,14 @@ Tachikoma/ (pnpm Monorepo)
 - 当仅通过 DOM 兜底命中时，标记 `confidence = "dom-fallback"`，CLI 回执提示正文可能不完整，建议后续执行 `spark distill` 补齐；
 - 提取失败时严禁在 `sparks.db` 留下半成品脏记录。
 
-### 4.3 登录态通道与自动兜底规约 (Authed Session Fallback)
+### 4.3 页内脚本执行铁律 (In-Page Script Execution)
+
+- **禁止把函数源码字符串直接丢给 `page.evaluate`**：Playwright 只在收到函数值时才带参调用，传 `"async (x) => {...}"` 这类字符串会被当表达式求值，得到函数对象后序列化回 Node 变成 `undefined`，且**不报错**；
+- **统一走 `toPageScript()`**（`packages/core/src/browser.ts`）：`page.evaluate(toPageScript(SCRIPT), arg)`，保留字符串常量形态且不引入 DOM 类型依赖；
+- **判据**：看到 `evaluate 返回值为空或非对象`、或多路径提取全空但页面肉眼有内容，优先怀疑此坑，而非平台改版；
+- **图文作品必须带 `device_platform=webapp&aid=6383`**：缺省时抖音返回 `aweme_detail: null` + `filter_reason: images_base`；落地页也必须是作品页本身（`www.douyin.com/note/{id}`），分享页上下文不予放行。
+
+### 4.4 登录态通道与自动兜底规约 (Authed Session Fallback)
 - **Profile 隔离存储**：登录态严格隔离持久化于 `<workspace>/.secrets/douyin-profile`，永不提交版本库（`.gitignore` 门禁）；
 - **匿名失败自动兜底**：单条抖音作品优先纯内存匿名提取；若全败且探活本机 Profile 处于已登录态（`authed`），自动以持久化会话重试一次，成功回执与卡片标记 `confidence = "authed-session"` 与 `source = "authed-session"`；
 - **同步强前置守卫**：`tachikoma sync` 必须携带已登录 Profile，未登录时直接明确报错拦截，严禁以匿名上下文进入收藏夹抓取循环；
