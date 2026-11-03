@@ -2,7 +2,6 @@ import { AuthorInfo, MediaType } from "@tachikoma/core";
 
 export type DouyinExtractionSource =
   | "ssr"
-  | "render-data"
   | "in-page-xhr"
   | "dom"
   | "authed-session";
@@ -50,7 +49,6 @@ export interface DouyinCollectionFolder {
 
 export interface DouyinSyncOptions {
   profileDir?: string;
-  cdpEndpoint?: string;
   outputDir: string;
   magpieBaseUrl?: string;
   magpieApiKey?: string;
@@ -60,6 +58,12 @@ export interface DouyinSyncOptions {
   dbPath?: string;
   collectId?: string;
   folderName?: string;
+  filterRules?: {
+    collections?: string[];
+    nameKeywords?: string[];
+    maxPerFolder?: number;
+  };
+  rulesConfigPath?: string;
   customTransport?: (path: string, params?: Record<string, unknown>) => Promise<any>;
   customFetcher?: (url: string, init?: RequestInit) => Promise<Response>;
   customOcr?: (images: string[]) => Promise<string>;

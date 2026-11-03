@@ -64,7 +64,6 @@ export interface IngestDouyinOptions {
   customOcr?: (images: string[]) => Promise<string>;
   customExtractor?: (urlOrId: string) => Promise<DouyinAwemeItem>;
   customSummarizer?: (text: string) => Promise<{ summary?: string; keyPoints?: string[] }>;
-  cdpEndpoint?: string;
   profileDir?: string;
   magpieBaseUrl?: string;
   magpieApiKey?: string;
@@ -146,7 +145,6 @@ export async function ingestDouyinToSparks(
     customTranscribe: audioTranscriber,
     customOcr: options?.customOcr,
     customExtractor: options?.customExtractor,
-    cdpEndpoint: options?.cdpEndpoint,
     profileDir: options?.profileDir,
     magpieBaseUrl: options?.magpieBaseUrl,
     magpieApiKey: options?.magpieApiKey,
@@ -235,38 +233,19 @@ program
         ? resolve(paths.rootDir, options.sparksDb)
         : paths.sparksDbPath;
 
-      // 1. 优先尝试免登录纯内存匿名提取（零 Profile 目录）
+      // 提取链路由库统一负责「有登录态走登录态、无则匿名」。
+      // 这里只传 profileDir，不再自己重复一遍匿名/登录态编排。
+      const profileDir = resolveDouyinProfileDir();
       const [err, res] = await tryit(ingestDouyinToSparks)(url, {
         sparksDbPath,
+        profileDir,
       });
 
-      // 2. 匿名提取失败时的登录态通道自动兜底
       const finalRes = await (async () => {
         if (!err && res) {
           return res;
         }
-
-        const profileDir = resolveDouyinProfileDir();
-        const sessionStatus = await hasDouyinSession(profileDir);
-
-        if (sessionStatus === "authed") {
-          console.log(
-            pc.yellow(
-              `[Tachikoma] 匿名解析未命中，检测到本机有效登录态，自动兜底重试...`
-            )
-          );
-          const [retryErr, retryRes] = await tryit(ingestDouyinToSparks)(url, {
-            sparksDbPath,
-            profileDir,
-          });
-          if (retryErr || !retryRes) {
-            handleDouyinError(retryErr);
-            return null;
-          }
-          return retryRes;
-        }
-
-        handleDouyinError(err, true);
+        handleDouyinError(err, false);
         return null;
       })();
 
@@ -354,7 +333,16 @@ program
   .description("增量轮询抖音收藏夹并自动对账转录")
   .option("-o, --output <dir>", "输出存储目录", "Ghost/_raw")
   .option("-c, --collect-id <id>", "指定单个收藏夹 ID 同步")
-  .action(async (options: { output?: string; collectId?: string }) => {
+  .option("-k, --keywords <keywords...>", "收藏夹名称包含关键字过滤 (空格隔开，如 -k 存档 面试)")
+  .option("-f, --folders <folders...>", "收藏夹精确名称过滤 (空格隔开，如 -f AI存档 心理学存档)")
+  .option("--rules-config <path>", "指定收藏夹规则配置文件路径 (默认 apps/douyin-sync/config/sync_rules.yaml)")
+  .action(async (options: {
+    output?: string;
+    collectId?: string;
+    keywords?: string[];
+    folders?: string[];
+    rulesConfig?: string;
+  }) => {
     const profileDir = resolveDouyinProfileDir();
     const sessionStatus = await hasDouyinSession(profileDir);
     if (sessionStatus !== "authed") {
@@ -371,10 +359,20 @@ program
     console.log(pc.cyan(`[Tachikoma] 开始增量同步抖音收藏夹 -> ${outputDir}`));
 
     const audioTranscriber = createAudioTranscriber();
+    const filterRules =
+      options.keywords || options.folders
+        ? {
+            collections: options.folders,
+            nameKeywords: options.keywords,
+          }
+        : undefined;
+
     const [err, results] = await tryit(syncCollections)({
       outputDir,
       sqlitePath: resolve(outputDir, ".cache/sync.db"),
       collectId: options.collectId,
+      filterRules,
+      rulesConfigPath: options.rulesConfig,
       customTranscribe: audioTranscriber,
       profileDir,
     });

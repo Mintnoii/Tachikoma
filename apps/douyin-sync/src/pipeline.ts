@@ -2,9 +2,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import { dirname, join } from "pathe";
 import { sift, tryit } from "radash";
-import { IngestionResult, persistIngestionResult, toPosixPath, extractDouyinUrlOrId, DEFAULT_DESKTOP_USER_AGENT } from "@tachikoma/core";
+import { IngestionResult, persistIngestionResult, toPosixPath, DEFAULT_DESKTOP_USER_AGENT } from "@tachikoma/core";
 import { openBrowserBridge, closeBrowserBridge, type BrowserBridge } from "./bridge.js";
-import { fetchAwemeDetail, fetchCollectList, fetchCollectAwemes } from "./client.js";
+import { fetchCollectList, fetchCollectAwemes, fetchAllCollectFolders, fetchAllCollectAwemes } from "./client.js";
+import { filterCollectFolders, loadSyncRulesConfig } from "./filter.js";
 import { fetchPublicAwemeItem } from "./public.js";
 import { ocrGallery } from "./ocr.js";
 import { createAudioTranscriber } from "./asr.js";
@@ -226,8 +227,8 @@ async function withSyncResources<T>(
   const dbPath = options.sqlitePath ?? options.dbPath;
   const db = dbPath ? openReconcilerDb(dbPath) : undefined;
   const bridge = openBrowserBridge({
-    cdpEndpoint: options.cdpEndpoint,
     profileDir: options.profileDir,
+    headless: true,
     customTransport: options.customTransport,
   });
 
@@ -245,66 +246,98 @@ async function withSyncResources<T>(
 }
 
 /**
- * 纯函数原子流：同步单个抖音作品（支持分享链接或 aweme_id）
+ * 纯函数原子流：增量同步抖音收藏夹并自动对账
  */
-export async function syncSingleAweme(
-  urlOrId: string,
-  options: DouyinSyncOptions
-): Promise<{ filePath: string; sha256: string; result: IngestionResult }> {
-  return await withSyncResources(options, async (bridge, db) => {
-    const match = urlOrId.match(/(?:video\/|note\/|modal_id=)(\d+)/);
-    const awemeId = match?.[1] ?? urlOrId.replace(/\D/g, "");
-    const aweme = await fetchAwemeDetail(bridge, awemeId || urlOrId);
-    const result = await processAweme(aweme, options, db, options.folderName);
-    const resolvedFolder = options.folderName?.trim();
-    const sanitizedFolder = resolvedFolder
-      ? resolvedFolder.replace(/[:*?"<>|]/g, "_")
-      : undefined;
-    const category = sanitizedFolder ? `douyin/${sanitizedFolder}` : "douyin";
-    const sanitizedTitle = (result.title || "untitled")
-      .replace(/[\\/:*?"<>|]/g, "_")
-      .trim()
-      .slice(0, 80);
-    const targetPath = toPosixPath(
-      join(options.outputDir, category, `${sanitizedTitle || "untitled"}.md`)
-    );
-    return { filePath: targetPath, sha256: result.sha256 ?? "", result };
-  });
-}
-
 /**
  * 纯函数原子流：增量同步抖音收藏夹并自动对账
+ *
+ * 1. 若指定 collectId，则仅同步单个指定收藏夹；
+ * 2. 若未指定，自动拉取全量收藏夹列表（支持分页循环拉全），并按 sync_rules.yaml（或 options.filterRules）
+ *    执行 collections 精确匹配与 name_keywords 模糊包含过滤；
+ * 3. 安全守卫：未指定单夹且过滤规则为空时，拒绝无脑全量同步；
+ * 4. 夹内作品支持全量游标分页拉取（突破单次 10 条限制），并支持 maxPerFolder 上限控制。
  */
 export async function syncCollections(
   options: DouyinSyncOptions,
   collectId?: string
 ): Promise<IngestionResult[]> {
   const targetCollectId = collectId ?? options.collectId;
-  return await withSyncResources(options, async (bridge, db) => {
-    const { folders } = await fetchCollectList(bridge);
-    const targetFolders = targetCollectId
-      ? sift([
-          folders.find((f) => f.id === targetCollectId) ?? {
-            id: targetCollectId,
-            name: options.folderName || "",
-            totalCount: 0,
-          },
-        ])
-      : folders;
 
-    const folderResults = await Promise.all(
-      targetFolders.map(async (folder) => {
-        const { items } = await fetchCollectAwemes(bridge, folder.id);
-        const unsyncedItems = db
-          ? filterUnsynced(db, items, options.outputDir)
-          : items;
-        return Promise.all(
-          unsyncedItems.map((item) =>
-            processAweme(item, options, db, folder.name || undefined)
-          )
+  return await withSyncResources(options, async (bridge, db) => {
+    // 1. 获取全量收藏夹列表（分页循环拉全，不截断）
+    const allFolders = await fetchAllCollectFolders(bridge);
+
+    let targetFolders: typeof allFolders = [];
+    let maxPerFolder = 0;
+
+    if (targetCollectId) {
+      const found = allFolders.find((f) => f.id === targetCollectId);
+      targetFolders = [
+        found ?? {
+          id: targetCollectId,
+          name: options.folderName || "未命名收藏夹",
+          totalCount: 0,
+        },
+      ];
+    } else {
+      // 2. 加载过滤规则（优先 options 传入，其次读 sync_rules.yaml）
+      const fileRules = loadSyncRulesConfig(options.rulesConfigPath);
+      const effectiveRules = {
+        collections: options.filterRules?.collections ?? fileRules.collections,
+        nameKeywords: options.filterRules?.nameKeywords ?? fileRules.nameKeywords,
+        maxPerFolder: options.filterRules?.maxPerFolder ?? fileRules.maxPerFolder ?? 0,
+      };
+      maxPerFolder = effectiveRules.maxPerFolder;
+
+      targetFolders = filterCollectFolders(allFolders, effectiveRules);
+
+      if (targetFolders.length === 0) {
+        const hasAnyRule =
+          (effectiveRules.collections?.length ?? 0) > 0 ||
+          (effectiveRules.nameKeywords?.length ?? 0) > 0;
+        if (!hasAnyRule) {
+          console.warn(
+            "[DouyinSync] ⚠️  安全拦截：未指定同步收藏夹 ID，且未配置任何 collections/name_keywords 规则。已停止全量拉取以防污染知识库。"
+          );
+        } else {
+          console.log(
+            `[DouyinSync] 在账号的 ${allFolders.length} 个收藏夹中未匹配到符合规则的收藏夹，本次跳过。`
+          );
+        }
+        return [];
+      }
+
+      console.log(
+        `[DouyinSync] 规则命中 ${targetFolders.length}/${allFolders.length} 个收藏夹: ` +
+          targetFolders.map((f) => `「${f.name}」(${f.totalCount}条)`).join("、")
+      );
+    }
+
+    // 3. 逐个收藏夹同步作品（单夹支持全量分页拉全）
+    const folderResults: IngestionResult[][] = [];
+    for (const folder of targetFolders) {
+      const items = await fetchAllCollectAwemes(
+        bridge,
+        folder.id,
+        maxPerFolder
+      );
+      const unsyncedItems = db
+        ? filterUnsynced(db, items, options.outputDir)
+        : items;
+
+      if (unsyncedItems.length > 0) {
+        console.log(
+          `[DouyinSync] 收藏夹「${folder.name}」共拉取 ${items.length} 件，需增量摄入 ${unsyncedItems.length} 件`
         );
-      })
-    );
+      }
+
+      const results = await Promise.all(
+        unsyncedItems.map((item) =>
+          processAweme(item, options, db, folder.name || undefined)
+        )
+      );
+      folderResults.push(results);
+    }
 
     return folderResults.flat();
   });
@@ -328,45 +361,15 @@ export async function fetchAwemeDetailWithTranscript(
   const [publicErr, publicAweme] = await tryit(fetchPublicAwemeItem)(urlOrId, {
     customExtractor: options?.customExtractor,
     customTransport: options?.customTransport,
-    cdpEndpoint: options?.cdpEndpoint,
     session: options?.profileDir ? { userDataDir: options.profileDir } : undefined,
   });
 
-  const aweme =
-    !publicErr && publicAweme && (publicAweme.id || publicAweme.desc)
-      ? publicAweme
-      : await withSyncResources(options ?? {}, async (bridge) => {
-          const extracted = extractDouyinUrlOrId(urlOrId);
-          const match = urlOrId.match(/(?:video\/|note\/|modal_id=)(\d+)/);
-          const awemeId =
-            match?.[1] ??
-            extracted.awemeId ??
-            (urlOrId.startsWith("http") ? "" : urlOrId.replace(/\D/g, ""));
-
-          if (!awemeId) {
-            throw publicErr ?? new DouyinExtractionError("ssr-no-item", `无法解析抖音作品 ID: ${urlOrId}`);
-          }
-
-          const [bridgeErr, bridgeAweme] = await tryit(fetchAwemeDetail)(bridge, awemeId);
-          if (bridgeErr) {
-            if (publicErr instanceof DouyinExtractionError) {
-              const bridgeAttempts =
-                bridgeErr instanceof DouyinExtractionError
-                  ? bridgeErr.attempts
-                  : [`bridge:/aweme/v1/web/aweme/detail/?aweme_id=${awemeId}`];
-              throw new DouyinExtractionError(
-                bridgeErr instanceof DouyinExtractionError ? bridgeErr.reason : publicErr.reason,
-                `${publicErr.message}; 降级同源桥接亦失败: ${bridgeErr.message}`,
-                {
-                  attempts: [...publicErr.attempts, ...bridgeAttempts],
-                  cause: bridgeErr,
-                }
-              );
-            }
-            throw bridgeErr;
-          }
-          return bridgeAweme;
-        });
+  // 提取统一由 fetchPublicAwemeItem 负责：匿名 → 登录态 → note 重试。
+  // 失败原因与 attempts 原样上报，不再另起浏览器用同源桥接重复提取同一作品。
+  if (publicErr || !publicAweme || (!publicAweme.id && !publicAweme.desc)) {
+    throw publicErr ?? new DouyinExtractionError("ssr-no-item", `抖音作品提取结果为空: ${urlOrId}`);
+  }
+  const aweme = publicAweme;
 
   const transcript =
     aweme.mediaType === "video"

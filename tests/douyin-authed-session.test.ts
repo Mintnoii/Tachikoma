@@ -68,19 +68,14 @@ test("OpenSpec douyin-authed-session-fallback Tests", async (t) => {
     assert.equal(status, "authed");
   });
 
-  await t.test("5.3 & 5.4: fetchPublicAwemeItem falls back to authed-session when anonymous fails and session is authed", async () => {
+  await t.test("5.3: 有登录态时直接走登录态通道，不再先跑一遍必败的匿名", async () => {
     const calls: Array<{ url: string; isAuthed?: boolean }> = [];
 
     const mockExtractor = async (url: string, context?: { isAuthed?: boolean }) => {
       calls.push({ url, isAuthed: context?.isAuthed });
-      if (!context?.isAuthed) {
-        throw new DouyinExtractionError("dom-fallback-empty", "匿名提取全部未命中", {
-          attempts: ["ssr:_ROUTER_DATA", "in-page-xhr:403", "dom-fallback"],
-        });
-      }
       return {
         id: "7709999999",
-        desc: "登录态重试成功的抖音作品",
+        desc: "登录态直接提取成功的抖音作品",
         author: { uid: "u1", secUid: "sec1", nickname: "认证创作者" },
         createTime: 1730500000,
         mediaType: "video" as const,
@@ -90,30 +85,23 @@ test("OpenSpec douyin-authed-session-fallback Tests", async (t) => {
 
     const result = await fetchPublicAwemeItem("https://www.douyin.com/video/7709999999", {
       customExtractor: mockExtractor,
-      session: {
-        userDataDir: "/virtual/profile",
-        hasSession: async () => "authed",
-      },
+      session: { userDataDir: "/virtual/profile" },
     });
 
-    // 验证调用了两次：第一次匿名（失败），第二次登录态（成功）
-    assert.equal(calls.length, 2);
-    assert.equal(calls[0].isAuthed, false);
-    assert.equal(calls[1].isAuthed, true);
-
-    // 验证置信度与来源标记
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].isAuthed, true);
     assert.equal(result.confidence, "authed-session");
     assert.equal(result.source, "authed-session");
-    assert.equal(result.desc, "登录态重试成功的抖音作品");
+    assert.equal(result.desc, "登录态直接提取成功的抖音作品");
   });
 
-  await t.test("5.4: fetchPublicAwemeItem rethrows anonymous error when session is anonymous", async () => {
+  await t.test("5.4: 登录态失败时退回匿名，两者皆败则抛出登录态错误", async () => {
     const calls: Array<{ url: string; isAuthed?: boolean }> = [];
 
     const mockExtractor = async (url: string, context?: { isAuthed?: boolean }) => {
       calls.push({ url, isAuthed: context?.isAuthed });
-      throw new DouyinExtractionError("dom-fallback-empty", "匿名提取全部未命中", {
-        attempts: ["ssr:_ROUTER_DATA", "in-page-xhr:403", "dom-fallback"],
+      throw new DouyinExtractionError("dom-fallback-empty", "提取全部未命中", {
+        attempts: ["in-page-xhr:403", "dom-fallback"],
       });
     };
 
@@ -121,10 +109,7 @@ test("OpenSpec douyin-authed-session-fallback Tests", async (t) => {
       async () => {
         await fetchPublicAwemeItem("https://www.douyin.com/video/7708888888", {
           customExtractor: mockExtractor,
-          session: {
-            userDataDir: "/virtual/profile",
-            hasSession: async () => "anonymous",
-          },
+          session: { userDataDir: "/virtual/profile" },
         });
       },
       (err: any) => {
@@ -135,9 +120,32 @@ test("OpenSpec douyin-authed-session-fallback Tests", async (t) => {
       }
     );
 
-    // 未登录时不进入第二次提取
+    // 登录态一次 + 匿名兜底一次
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].isAuthed, true);
+    assert.equal(calls[1].isAuthed, false);
+  });
+
+  await t.test("5.5: 无登录态时只跑匿名通道", async () => {
+    const calls: Array<{ isAuthed?: boolean }> = [];
+
+    const result = await fetchPublicAwemeItem("https://www.douyin.com/video/7707777777", {
+      customExtractor: async (_url: string, context?: { isAuthed?: boolean }) => {
+        calls.push({ isAuthed: context?.isAuthed });
+        return {
+          id: "7707777777",
+          desc: "匿名提取成功",
+          author: { uid: "", secUid: "", nickname: "匿名作者" },
+          createTime: 1730500000,
+          mediaType: "video" as const,
+          shareUrl: "https://www.douyin.com/video/7707777777",
+        };
+      },
+    });
+
     assert.equal(calls.length, 1);
     assert.equal(calls[0].isAuthed, false);
+    assert.equal(result.desc, "匿名提取成功");
   });
 
   await t.test("CLI command definitions include douyin subcommands", () => {

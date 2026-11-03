@@ -4,7 +4,6 @@ import { rm, mkdir } from "node:fs/promises";
 import { join } from "pathe";
 import {
   deepFindAwemeItem,
-  extractFromRenderData,
   openBrowserBridge,
   closeBrowserBridge,
   DouyinExtractionError,
@@ -177,38 +176,6 @@ test("Douyin Extraction Resilience & Diagnostic Failure Tests", async (t) => {
         return true;
       }
     );
-  });
-
-  await t.test("4.3: extractFromRenderData parses URI-encoded JSON into normalized aweme item", () => {
-    const rawAwemeData = {
-      "app": {
-        "videoInfoRes": {
-          "item_list": [
-            {
-              "aweme_id": "7702222222222222222",
-              "desc": "RENDER_DATA 解码作品标题",
-              "video": {
-                "play_addr": {
-                  "url_list": ["https://example.com/render_data_video.mp4"],
-                },
-              },
-            },
-          ],
-        },
-      },
-    };
-
-    const encoded = encodeURIComponent(JSON.stringify(rawAwemeData));
-    const extracted = extractFromRenderData(encoded);
-
-    assert.ok(extracted);
-    assert.equal(extracted?.aweme_id, "7702222222222222222");
-    assert.equal(extracted?.desc, "RENDER_DATA 解码作品标题");
-
-    // 异常与空输入防御
-    assert.equal(extractFromRenderData(""), null);
-    assert.equal(extractFromRenderData("%E0%A4%A"), null); // 非法 URI 转义序列
-    assert.equal(extractFromRenderData(encodeURIComponent("not-json-content")), null);
   });
 
   await t.test("3.2 & 3.3: DOM fallback sets dom-fallback confidence, and failures leave no dirty records in sparks.db", async () => {

@@ -120,17 +120,66 @@ export const fetchCollectAwemes = async (
 };
 
 /**
- * 纯函数：获取单条作品详情
+ * 纯函数：全量游标分页获取所有收藏夹列表（直至 hasMore 为 false 或防环上限）
  */
-export const fetchAwemeDetail = async (
+export const fetchAllCollectFolders = async (
   bridge: BrowserBridge,
-  awemeId: string
-): Promise<DouyinAwemeItem> => {
-  const raw = await bridge.requestJson("/aweme/v1/web/aweme/detail/", {
-    aweme_id: awemeId,
-    // 必须带 aid/device_platform：缺省时图文作品会被按 web 端保守策略过滤（aweme_detail 为空）
-    device_platform: "webapp",
-    aid: 6383,
-  });
-  return normalizeAweme(raw?.aweme_detail ?? raw);
+  pageSize = 30,
+  maxPages = 20
+): Promise<DouyinCollectionFolder[]> => {
+  const folders: DouyinCollectionFolder[] = [];
+  const seenIds = new Set<string>();
+  let cursor = 0;
+  let hasMore = true;
+  let page = 0;
+
+  while (hasMore && page < maxPages) {
+    const res = await fetchCollectList(bridge, cursor, pageSize);
+    for (const f of res.folders) {
+      if (!seenIds.has(f.id)) {
+        seenIds.add(f.id);
+        folders.push(f);
+      }
+    }
+    hasMore = res.hasMore && res.folders.length > 0;
+    cursor = res.cursor;
+    page++;
+  }
+
+  return folders;
+};
+
+/**
+ * 纯函数：全量游标分页获取指定收藏夹内的所有作品（支持 maxCount 截断）
+ */
+export const fetchAllCollectAwemes = async (
+  bridge: BrowserBridge,
+  collectsId: string,
+  maxCount = 0,
+  pageSize = 20,
+  maxPages = 50
+): Promise<DouyinAwemeItem[]> => {
+  const items: DouyinAwemeItem[] = [];
+  const seenIds = new Set<string>();
+  let cursor = 0;
+  let hasMore = true;
+  let page = 0;
+
+  while (hasMore && page < maxPages) {
+    const res = await fetchCollectAwemes(bridge, collectsId, cursor, pageSize);
+    for (const it of res.items) {
+      if (!seenIds.has(it.id)) {
+        seenIds.add(it.id);
+        items.push(it);
+        if (maxCount > 0 && items.length >= maxCount) {
+          return items.slice(0, maxCount);
+        }
+      }
+    }
+    hasMore = res.hasMore && res.items.length > 0;
+    cursor = res.cursor;
+    page++;
+  }
+
+  return items;
 };

@@ -7,7 +7,6 @@ export type CustomTransport = (path: string, params?: Record<string, unknown>) =
 
 export interface BrowserBridgeOptions {
   profileDir?: string;
-  cdpEndpoint?: string;
   headless?: boolean;
   homepageUrl?: string;
   customTransport?: CustomTransport; // 支持测试环境沙盒注入模拟请求
@@ -76,12 +75,8 @@ export const openBrowserBridge = (options: BrowserBridgeOptions = {}): BrowserBr
     }
 
     initPromise = (async () => {
-      if (opts.cdpEndpoint) {
-        const cdpBrowser = await chromium.connectOverCDP(opts.cdpEndpoint);
-        context = cdpBrowser.contexts()[0] ?? (await cdpBrowser.newContext());
-      } else if (opts.profileDir) {
-        const profilePath = toPosixPath(opts.profileDir);
-        context = await chromium.launchPersistentContext(profilePath, {
+      if (opts.profileDir) {
+        context = await chromium.launchPersistentContext(opts.profileDir, {
           headless: opts.headless ?? true,
           viewport: { width: 1280, height: 800 },
           args: ["--disable-blink-features=AutomationControlled"],
@@ -90,8 +85,9 @@ export const openBrowserBridge = (options: BrowserBridgeOptions = {}): BrowserBr
         browser = await chromium.launch({
           headless: opts.headless ?? true,
         });
-        ownBrowser = true;
-        context = await browser.newContext();
+        context = await browser.newContext({
+          viewport: { width: 1280, height: 800 },
+        });
       }
 
       const activePage = await context.newPage();

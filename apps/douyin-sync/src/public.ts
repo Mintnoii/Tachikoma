@@ -4,7 +4,6 @@ import {
   withPersistentBrowserContext,
   extractDouyinUrlOrId,
   type DouyinUrlOrId,
-  safeJsonParse,
   toPageScript,
 } from "@tachikoma/core";
 import { normalizeAweme } from "./client.js";
@@ -14,7 +13,7 @@ import {
   DouyinExtractionConfidence,
 } from "./types.js";
 import { DouyinExtractionError, DouyinExtractionReason } from "./errors.js";
-import { hasDouyinSession, type DouyinSessionStatus } from "./session.js";
+import type { DouyinSessionStatus } from "./session.js";
 import type { Page } from "playwright-core";
 
 export { extractDouyinUrlOrId, type DouyinUrlOrId };
@@ -27,7 +26,6 @@ export interface PublicAwemeSessionOption {
 export interface PublicAwemeOptions {
   timeoutMs?: number;
   headless?: boolean;
-  cdpEndpoint?: string;
   isMobile?: boolean;
   customExtractor?: (
     urlOrId: string,
@@ -97,17 +95,6 @@ export function deepFindAwemeItem(
   );
 }
 
-/**
- * 纯函数：解码并解析 <script id="RENDER_DATA"> 中的 URI 编码 JSON 数据
- */
-export function extractFromRenderData(rawText: string): Record<string, any> | null {
-  if (!rawText || !rawText.trim()) return null;
-  const [decodeErr, decoded] = tryit(decodeURIComponent)(rawText.trim());
-  if (decodeErr || !decoded) return null;
-  const parsed = safeJsonParse<Record<string, any>>(decoded, {});
-  return deepFindAwemeItem(parsed);
-}
-
 const SSR_EXTRACT_SCRIPT = `
 () => {
   const deepFind = (val, maxDepth = 8, visited = new Set()) => {
@@ -144,8 +131,6 @@ const SSR_EXTRACT_SCRIPT = `
   return null;
 }
 `;
-
-const GET_RENDER_TEXT_SCRIPT = `() => document.querySelector("#RENDER_DATA")?.textContent?.trim() || null`;
 
 const IN_PAGE_FETCH_SCRIPT = `
 async (awemeId) => {
@@ -227,19 +212,17 @@ const DOM_FALLBACK_SCRIPT = `
 `;
 
 /**
- * 页面上下文多路径串行提取器：SSR 变量 -> RENDER_DATA -> 页内同源 XHR -> DOM
+ * 页面上下文提取器：页内同源 XHR -> 作品页重试 -> DOM 兜底
  */
 export async function extractFromPageContext(
   page: Page,
   targetAwemeId?: string
 ): Promise<PageExtractionResult> {
-  // 1. SSR 注入变量检查 (_ROUTER_DATA, __INITIAL_STATE__, __INIT_PROPS__)
+  // 0. 分享页兜底：m.douyin.com 等旧分享页仍可能注入 _ROUTER_DATA
   const ssrMatch = (await page.evaluate(toPageScript(SSR_EXTRACT_SCRIPT), undefined)) as {
     sourceName: string;
     candidate: Record<string, any>;
   } | null;
-
-  const ssrAttempts = ["ssr:_ROUTER_DATA", "ssr:__INITIAL_STATE__", "ssr:__INIT_PROPS__"];
 
   if (ssrMatch?.candidate) {
     return {
@@ -250,22 +233,7 @@ export async function extractFromPageContext(
     };
   }
 
-  // 2. <script id="RENDER_DATA"> 路径
-  const renderText = (await page.evaluate(toPageScript(GET_RENDER_TEXT_SCRIPT), undefined)) as string | null;
-
-  const renderCandidate = renderText ? extractFromRenderData(renderText) : null;
-  if (renderCandidate) {
-    return {
-      candidate: renderCandidate,
-      source: "render-data",
-      confidence: "high",
-      attempts: [...ssrAttempts, "render-data"],
-    };
-  }
-
-  const baseAttempts = [...ssrAttempts, "render-data"];
-
-  // 3. 页内同源 XHR 路径 (/aweme/v1/web/aweme/detail/?aweme_id=...)
+  // 1. 页内同源 XHR（唯一稳定主路径） (/aweme/v1/web/aweme/detail/?aweme_id=...)
   const xhrResult = targetAwemeId
     ? ((await page.evaluate(toPageScript(IN_PAGE_FETCH_SCRIPT), targetAwemeId)) as {
         ok: boolean;
@@ -285,11 +253,11 @@ export async function extractFromPageContext(
       candidate: xhrCandidate,
       source: "in-page-xhr",
       confidence: "high",
-      attempts: [...baseAttempts, xhrAttemptKey],
+      attempts: [xhrAttemptKey],
     };
   }
 
-  const postXhrAttempts = [...baseAttempts, xhrAttemptKey];
+  const postXhrAttempts = [xhrAttemptKey];
 
   // 抖音对图文做了上下文过滤：从非作品页发起 detail 会返回 aweme_detail:null + filter_reason:images_base
   const filterReason = xhrResult?.data?.filter_detail?.filter_reason;
@@ -300,7 +268,7 @@ export async function extractFromPageContext(
         ? "api-forbidden"
         : "ssr-no-item";
 
-  // 4. DOM 启发式兜底
+  // 2. DOM 启发式兜底（XHR 与重试都失败后的最后手段）
   const domFallback = (await page.evaluate(toPageScript(DOM_FALLBACK_SCRIPT), undefined)) as Record<
     string,
     any
@@ -340,6 +308,12 @@ async function retryViaNotePage(
   timeoutMs: number
 ): Promise<PageExtractionResult> {
   if (!awemeId || page.url().includes(`/note/${awemeId}`)) {
+    return first;
+  }
+
+  // 已在作品页上下文且失败原因不是图文过滤（例如 403），换页面也无济于事，不做无谓导航
+  const onWorkPage = /douyin\.com\/(video|note)\/\d+/.test(page.url());
+  if (onWorkPage && first.failureReason !== "images-filtered") {
     return first;
   }
 
@@ -492,25 +466,11 @@ export async function fetchPublicAwemeItem(
     });
   };
 
-  const [anonErr, anonItem] = await tryit(runAnonymous)();
-  if (!anonErr && anonItem) {
-    return anonItem;
-  }
+  // DOM 兜底只是一段标题级文本：不能当作成功，否则会短路登录态通道，把图文当视频落库
+  const isStructured = (item?: DouyinAwemeItem | null) =>
+    Boolean(item) && item!.confidence !== "dom-fallback";
 
-  // 2. 匿名全败且 session 存在时的自动兜底
-  const session = options?.session;
-  if (!session?.userDataDir) {
-    throw anonErr;
-  }
-
-  const sessionChecker = session.hasSession ?? hasDouyinSession;
-  const sessionStatus = await sessionChecker(session.userDataDir);
-  if (sessionStatus !== "authed") {
-    throw anonErr;
-  }
-
-  // 3. 以持久化上下文重跑同一套多路径提取
-  const runAuthed = async (): Promise<DouyinAwemeItem> => {
+  const runAuthed = async (userDataDir: string): Promise<DouyinAwemeItem> => {
     if (options?.customAuthedExtractor) {
       return await options.customAuthedExtractor(urlOrId);
     }
@@ -518,32 +478,40 @@ export async function fetchPublicAwemeItem(
       return await options.customExtractor(urlOrId, { isAuthed: true });
     }
     return await withPersistentBrowserContext(
-      session.userDataDir,
+      userDataDir,
       { ...options, isMobile: options?.isMobile ?? false },
-      async (page) => {
-        return await extractAwemeFromLivePage(page, urlOrId, timeout);
-      }
+      async (page) => await extractAwemeFromLivePage(page, urlOrId, timeout)
     );
   };
 
-  const [authedErr, authedItem] = await tryit(runAuthed)();
-  if (authedErr || !authedItem) {
+  const userDataDir = options?.session?.userDataDir;
+
+  // 有登录态就直接走登录态：匿名对图文必然 403，先跑一遍只是白烧一次浏览器启动
+  if (userDataDir) {
+    const [authedErr, authedItem] = await tryit(runAuthed)(userDataDir);
+    if (!authedErr && authedItem) {
+      return { ...authedItem, source: "authed-session", confidence: "authed-session" };
+    }
+
+    // 登录态失效（cookie 过期等）时退回匿名，仍失败则把登录态的错误抛出去
+    const [anonErr, anonItem] = await tryit(runAnonymous)();
+    if (!anonErr && anonItem && isStructured(anonItem)) {
+      return anonItem;
+    }
     if (authedErr instanceof DouyinExtractionError && anonErr instanceof DouyinExtractionError) {
       throw new DouyinExtractionError(
         authedErr.reason,
-        `[PublicAweme] 登录态兜底提取仍失败: ${authedErr.message}`,
-        {
-          attempts: [...anonErr.attempts, ...authedErr.attempts],
-          cause: authedErr,
-        }
+        `[PublicAweme] 登录态提取失败且匿名亦未成功: ${authedErr.message}`,
+        { attempts: [...authedErr.attempts, ...anonErr.attempts], cause: authedErr }
       );
     }
     throw authedErr ?? anonErr;
   }
 
-  return {
-    ...authedItem,
-    source: "authed-session",
-    confidence: "authed-session",
-  };
+  // 无登录态：纯匿名提取
+  const [anonErr, anonItem] = await tryit(runAnonymous)();
+  if (!anonErr && anonItem) {
+    return anonItem;
+  }
+  throw anonErr;
 }

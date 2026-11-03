@@ -21,10 +21,6 @@ packages/guard/target/
 # 抖音登录态专用 profile（绝不进版本库）
 .secrets/
 
-# Python 本地虚拟环境与字节码（ASR Sidecar）
-__pycache__/
-*.pyc
-
 # ASR Sidecar 的二进制与模型权重（体积大，按 README 自行下载）
 services/asr/bin/
 services/asr/models/

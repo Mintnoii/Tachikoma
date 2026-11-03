@@ -62,8 +62,9 @@ Tachikoma/ (pnpm Monorepo)
 
 ## 4. 抖音解析链路与失败诊断规约 (Douyin Ingestion Resilience)
 
-单条作品匿名解析遵循多路径深度发现策略：
-`SSR 注入变量 (_ROUTER_DATA / __INITIAL_STATE__ / __INIT_PROPS__)` $\to$ `<script id="RENDER_DATA">` $\to$ `页内同源 XHR (/aweme/detail/)` $\to$ `DOM 启发式兜底`。
+单条作品提取策略（2026-11-03 按实测收敛）：
+`有登录态 → 持久化上下文 → 页内同源 XHR（必带 device_platform=webapp&aid=6383）` $\to$ `命中文图过滤(images_base)则切 /note/{id} 重试一次` $\to$ `DOM 启发式兜底`。
+匿名无 cookie 时页面会跳 m.douyin.com 分享页，其 `_ROUTER_DATA` 是匿名通道唯一数据来源；www 页面早已不注入 SSR 变量，`<script id="RENDER_DATA">` 解析路径已删除。
 
 ### 4.1 失败分类语义 (DouyinExtractionReason)
 - **`ssr-no-item`**：页面 SSR 变量与 RENDER_DATA 均未包含有效作品数据对象；
