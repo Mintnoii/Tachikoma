@@ -25,6 +25,13 @@ export async function clipUrl(
 
   const purified = purifyArticle(html, finalUrl);
 
+  // 1.2 二次墓碑校验：若标题已在 Ghost 墓碑账本中，亦直接阻断（防重定向带参链接穿透）
+  if (isTombstoneIgnored({ title: purified.title }, tombstones)) {
+    throw new Error(
+      `[墓碑拦截 Tombstone Blocked] 该标题已在 Ghost 墓碑账本中标记放弃炼化: "${purified.title}"`
+    );
+  }
+
   const authorName = purified.byline || purified.siteName || "网络信源";
   const bodyContent = sift([
     `# ${purified.title}`,
