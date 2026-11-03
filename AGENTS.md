@@ -38,6 +38,9 @@ Tachikoma/ (pnpm Monorepo)
 ├── packages/
 │   ├── core/            # 核心抽象契约、TypeBox Schema、RFC-2026-0922 格式化
 │   └── guard/           # Rust 编写的静态无黑框守护二进制（tachikoma-guard.exe）
+│                        #   职责：定时收藏夹同步 + 本地 ASR 服务（services/asr）拉起与探活自愈
+├── services/
+│   └── asr/             # 本地 faster-whisper 转写 Sidecar（OpenAI Audio 兼容 HTTP）
 ├── openspec/            # OpenSpec 架构规约驱动目录（specs 与 changes）
 ├── AGENTS.md            # 本文件：项目跨 Agent 行为宪法
 └── README.md            # 项目全景说明
@@ -52,6 +55,7 @@ Tachikoma/ (pnpm Monorepo)
   - 流式与集合变换 100% 依托 `radash`（`tryit`, `unique`, `sift` 等），严禁业务层裸写 `try/catch` 样板或手写过程式 `for` 游标；
   - 强类型契约 100% 依托 `@sinclair/typebox`，杜绝散落的 `Array.isArray` 防御八股；
 - **严禁 VBS / PowerShell 脚本胶水**：后台常驻与守护统一走 `packages/guard` Rust 编译产物；
+- **外部能力接入形态约束**：第三方推理/工具能力要么以纯 TS / Rust 代码实现，要么以**无解释器二进制**（如 whisper.cpp 的 `whisper-server.exe`）接入并由 guard 托管；严禁为图省事引入 Python（含 venv / pip / requirements.txt）或其他解释器运行时；
 - **包管理器**：全工程严格使用 `pnpm`。
 
 ---

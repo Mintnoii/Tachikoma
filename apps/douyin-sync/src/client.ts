@@ -27,9 +27,12 @@ export const normalizeAweme = (raw: any): DouyinAwemeItem => {
     })
   );
   const isGallery = raw?.aweme_type === 68 || imageUrls.length > 0;
+  const videoUrlList = sift<string>([
+    ...(raw?.video?.play_addr?.url_list ?? []),
+    ...(raw?.video?.play_addr_h264?.url_list ?? []),
+  ]);
   const videoPlayUrl =
-    raw?.video?.play_addr?.url_list?.[0] ??
-    raw?.video?.play_addr_h264?.url_list?.[0] ??
+    videoUrlList[0] ??
     raw?.video_play_url ??
     raw?.videoPlayUrl;
   const stats = raw?.statistics ?? {};
@@ -41,6 +44,7 @@ export const normalizeAweme = (raw: any): DouyinAwemeItem => {
     createTime: Number(raw?.create_time || raw?.createTime || Math.floor(Date.now() / 1000)),
     mediaType: isGallery ? "gallery" : "video",
     videoPlayUrl,
+    videoUrlList: videoUrlList.length > 0 ? videoUrlList : undefined,
     imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
     shareUrl: raw?.share_url || (awemeId ? `https://www.douyin.com/video/${awemeId}` : ""),
     statistics: {

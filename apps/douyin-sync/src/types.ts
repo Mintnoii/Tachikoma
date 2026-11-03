@@ -26,6 +26,8 @@ export interface DouyinAwemeItem {
   createTime: number; // unix timestamp seconds
   mediaType: MediaType; // "video" | "gallery"
   videoPlayUrl?: string;
+  /** 播放地址全集（CDN 多线路备份，按序尝试） */
+  videoUrlList?: string[];
   imageUrls?: string[];
   shareUrl: string;
   statistics?: {

@@ -62,3 +62,35 @@ entries:
     status: verified
     source: "2026 年第 32 周 GitHub 热门 AI 项目盘点"
     context: "周榜话题中提到的病症名"
+
+  # ── Lightpanda（Jackey｜AI Agent实战，2026-11-03 首次真实转录核实）──
+  - wrong: "Zeke"
+    correct: "Zig"
+    status: verified
+    source: "AI 抓网页，浏览器成了瓶颈 GitHub 宝藏项目！"
+    context: "编写 Lightpanda 的系统级编程语言"
+  - wrong: "LitePanda"
+    correct: "Lightpanda"
+    status: verified
+    source: "AI 抓网页，浏览器成了瓶颈 GitHub 宝藏项目！"
+    context: "为 AI 设计的轻量浏览器（github.com/lightpanda-io/browser）"
+  - wrong: "PuppyTier"
+    correct: "Puppeteer"
+    status: verified
+    source: "AI 抓网页，浏览器成了瓶颈 GitHub 宝藏项目！"
+    context: "通过 CDP 接管浏览器的 Node 库"
+  - wrong: "PandaScript 确定,不好"
+    correct: "PandaScript 确定性、不耗 token"
+    status: verified
+    source: "AI 抓网页，浏览器成了瓶颈 GitHub 宝藏项目！"
+    context: "Lightpanda 的确定性脚本语言，区别于靠大模型烧 token 驱动"
+  - wrong: "9282 短口"
+    correct: "9222 端口"
+    status: verified
+    source: "AI 抓网页，浏览器成了瓶颈 GitHub 宝藏项目！"
+    context: "Chrome DevTools Protocol 默认调试端口"
+  - wrong: "E ForSteel 的 GSON2 PC"
+    correct: "走 stdio 的 JSON-RPC"
+    status: verified
+    source: "AI 抓网页，浏览器成了瓶颈 GitHub 宝藏项目！"
+    context: "Lightpanda 原生 MCP 的传输方式"

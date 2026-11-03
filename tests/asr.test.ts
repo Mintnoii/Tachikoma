@@ -13,6 +13,7 @@ describe("Tachikoma ASR Client Tests", () => {
       const transcriber = createAudioTranscriber({
         baseUrl: "http://127.0.0.1:59999/v1", // 不存在的本地端口
         timeoutMs: 500,
+        customTranscoder: async (buffer: Buffer) => buffer,
       });
 
       const result = await transcriber(testFile);
@@ -58,6 +59,7 @@ describe("Tachikoma ASR Client Tests", () => {
       const transcriber = createAudioTranscriber({
         baseUrl: `http://127.0.0.1:${port}/v1`,
         apiKey: "test-token-key",
+        customTranscoder: async (buffer: Buffer) => buffer,
       });
 
       const transcript = await transcriber(testFile);

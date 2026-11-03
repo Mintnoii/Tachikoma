@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import { dirname, join } from "pathe";
 import { sift, tryit } from "radash";
-import { IngestionResult, persistIngestionResult, toPosixPath, extractDouyinUrlOrId } from "@tachikoma/core";
+import { IngestionResult, persistIngestionResult, toPosixPath, extractDouyinUrlOrId, DEFAULT_DESKTOP_USER_AGENT } from "@tachikoma/core";
 import { openBrowserBridge, closeBrowserBridge, type BrowserBridge } from "./bridge.js";
 import { fetchAwemeDetail, fetchCollectList, fetchCollectAwemes } from "./client.js";
 import { fetchPublicAwemeItem } from "./public.js";
@@ -16,6 +16,7 @@ import {
 } from "./reconciliation.js";
 import { DouyinAwemeItem, DouyinSyncOptions } from "./types.js";
 import { DouyinExtractionError } from "./errors.js";
+import { DOUYIN_CDN_HEADERS } from "./cdn.js";
 
 /**
  * 下载媒体文件到沙盒/指定资产目录原子函数
@@ -24,9 +25,11 @@ export async function downloadAsset(url: string, targetPath: string): Promise<st
   const posixPath = toPosixPath(targetPath);
   await tryit(mkdir)(dirname(posixPath), { recursive: true });
 
-  const [fetchErr, res] = await tryit(fetch)(url);
+  const [fetchErr, res] = await tryit(fetch)(url, { headers: DOUYIN_CDN_HEADERS });
   if (fetchErr || !res?.ok) {
-    throw new Error(`下载媒体资源失败 (${res?.status}): ${url}`);
+    const [bodyErr, body] = await tryit(async () => (await res?.text()) ?? "")();
+    const hint = bodyErr || !body ? "" : ` body=${body.slice(0, 200)}`;
+    throw new Error(`下载媒体资源失败 (${res?.status ?? fetchErr?.message}): ${url}${hint}`);
   }
 
   const buffer = Buffer.from(await res.arrayBuffer());
@@ -35,6 +38,24 @@ export async function downloadAsset(url: string, targetPath: string): Promise<st
     throw new Error(`保存媒体资源失败: ${posixPath} - ${writeErr.message}`);
   }
   return posixPath;
+}
+
+/**
+ * 按序尝试多线路 CDN 地址，首个成功即止
+ * @example
+ * await downloadFirstAvailable(["https://a/1.mp4", "https://b/1.mp4"], "./v.mp4");
+ */
+export async function downloadFirstAvailable(
+  urls: readonly string[],
+  targetPath: string
+): Promise<string> {
+  const [first, ...rest] = urls;
+  if (!first) throw new Error(`无可用的媒体下载地址: ${targetPath}`);
+
+  const [err, savedPath] = await tryit(downloadAsset)(first, targetPath);
+  if (!err && savedPath) return savedPath;
+  if (rest.length === 0) throw err ?? new Error(`下载失败: ${first}`);
+  return await downloadFirstAvailable(rest, targetPath);
 }
 
 /**
@@ -75,13 +96,14 @@ export async function processAweme(
         )
       : [];
 
-  // 2. 视频管线：可选持久化 mp4
+  // 2. 视频管线：可选持久化 mp4（多 CDN 线路按序尝试）
+  const videoUrls = item.videoUrlList ?? (item.videoPlayUrl ? [item.videoPlayUrl] : []);
   const downloadedVideo =
-    !isGallery && options.downloadMedia && item.videoPlayUrl
+    !isGallery && options.downloadMedia && videoUrls.length > 0
       ? await (async () => {
           const videoFile = join(assetBaseDir, `video_${item.id}.mp4`);
-          const [err, savedPath] = await tryit(downloadAsset)(
-            item.videoPlayUrl!,
+          const [err, savedPath] = await tryit(downloadFirstAvailable)(
+            videoUrls,
             videoFile
           );
           return err || !savedPath ? [] : [savedPath];

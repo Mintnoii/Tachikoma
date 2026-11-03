@@ -11,6 +11,7 @@
     "@tachikoma/core": "workspace:*",
     "pathe": "^2.0.3",
     "playwright-core": "^1.50.0",
-    "radash": "^12.1.1"
+    "radash": "^12.1.1",
+    "yaml": "^2.9.1"
   }
 }
