@@ -122,6 +122,9 @@ export const fetchAwemeDetail = async (
 ): Promise<DouyinAwemeItem> => {
   const raw = await bridge.requestJson("/aweme/v1/web/aweme/detail/", {
     aweme_id: awemeId,
+    // 必须带 aid/device_platform：缺省时图文作品会被按 web 端保守策略过滤（aweme_detail 为空）
+    device_platform: "webapp",
+    aid: 6383,
   });
   return normalizeAweme(raw?.aweme_detail ?? raw);
 };

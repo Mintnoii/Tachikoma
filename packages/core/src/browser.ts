@@ -2,6 +2,17 @@ import { chromium, type BrowserContext, type Page } from "playwright-core";
 import { tryit } from "radash";
 import { toPosixPath } from "./utils/path.js";
 
+/**
+ * 把「函数源码字符串」包装成 Playwright 真正会调用的函数
+ *
+ * Playwright 只有在收到函数值时才带参调用。直接传 `"async (x) => {...}"` 这样的字符串，
+ * 它按表达式求值，得到一个函数对象，序列化后变成 `undefined` —— 表现为
+ * "页面 evaluate 返回值为空或非对象"，且不会报错，极难定位。
+ */
+export const toPageScript = <A = unknown, R = unknown>(source: string) =>
+  new Function("arg", `return (${source})(arg);`) as (arg: A) => Promise<R>;
+
+
 export const DEFAULT_DESKTOP_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36";
 

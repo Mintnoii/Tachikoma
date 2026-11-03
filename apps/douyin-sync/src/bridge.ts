@@ -1,6 +1,6 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 import { sift, tryit } from "radash";
-import { toPosixPath } from "@tachikoma/core";
+import { toPageScript, toPosixPath } from "@tachikoma/core";
 import { DouyinExtractionError } from "./errors.js";
 
 export type CustomTransport = (path: string, params?: Record<string, unknown>) => Promise<any>;
@@ -135,7 +135,7 @@ export const openBrowserBridge = (options: BrowserBridgeOptions = {}): BrowserBr
     const attemptKey = `bridge:${fullPath}`;
 
     const [err, res] = await tryit(activePage.evaluate.bind(activePage))(
-      IN_PAGE_XHR_SCRIPT,
+      toPageScript(IN_PAGE_XHR_SCRIPT),
       fullPath
     );
 

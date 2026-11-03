@@ -2,7 +2,9 @@ export type DouyinExtractionReason =
   | "ssr-no-item"
   | "bridge-empty"
   | "api-forbidden"
-  | "dom-fallback-empty";
+  | "dom-fallback-empty"
+  /** 详情接口按上下文过滤图文作品（filter_reason=images_base） */
+  | "images-filtered";
 
 export interface DouyinExtractionErrorOptions {
   attempts?: string[];

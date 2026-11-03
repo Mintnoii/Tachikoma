@@ -5,6 +5,7 @@ import {
   extractDouyinUrlOrId,
   type DouyinUrlOrId,
   safeJsonParse,
+  toPageScript,
 } from "@tachikoma/core";
 import { normalizeAweme } from "./client.js";
 import {
@@ -150,9 +151,13 @@ const IN_PAGE_FETCH_SCRIPT = `
 async (awemeId) => {
   try {
     const resp = await fetch(
-      "/aweme/v1/web/aweme/detail/?aweme_id=" + encodeURIComponent(awemeId),
+      // aid / device_platform 必须带：缺省时抖音按 web 端最保守策略返回空壳或 images_base 过滤
+      "/aweme/v1/web/aweme/detail/?aweme_id=" +
+        encodeURIComponent(awemeId) +
+        "&device_platform=webapp&aid=6383",
       {
         method: "GET",
+        credentials: "include",
         headers: {
           Accept: "application/json, text/plain, */*",
         },
@@ -229,7 +234,7 @@ export async function extractFromPageContext(
   targetAwemeId?: string
 ): Promise<PageExtractionResult> {
   // 1. SSR 注入变量检查 (_ROUTER_DATA, __INITIAL_STATE__, __INIT_PROPS__)
-  const ssrMatch = (await page.evaluate(SSR_EXTRACT_SCRIPT)) as {
+  const ssrMatch = (await page.evaluate(toPageScript(SSR_EXTRACT_SCRIPT), undefined)) as {
     sourceName: string;
     candidate: Record<string, any>;
   } | null;
@@ -246,7 +251,7 @@ export async function extractFromPageContext(
   }
 
   // 2. <script id="RENDER_DATA"> 路径
-  const renderText = (await page.evaluate(GET_RENDER_TEXT_SCRIPT)) as string | null;
+  const renderText = (await page.evaluate(toPageScript(GET_RENDER_TEXT_SCRIPT), undefined)) as string | null;
 
   const renderCandidate = renderText ? extractFromRenderData(renderText) : null;
   if (renderCandidate) {
@@ -262,7 +267,7 @@ export async function extractFromPageContext(
 
   // 3. 页内同源 XHR 路径 (/aweme/v1/web/aweme/detail/?aweme_id=...)
   const xhrResult = targetAwemeId
-    ? ((await page.evaluate(IN_PAGE_FETCH_SCRIPT, targetAwemeId)) as {
+    ? ((await page.evaluate(toPageScript(IN_PAGE_FETCH_SCRIPT), targetAwemeId)) as {
         ok: boolean;
         status: number;
         data?: any;
@@ -285,11 +290,21 @@ export async function extractFromPageContext(
   }
 
   const postXhrAttempts = [...baseAttempts, xhrAttemptKey];
+
+  // 抖音对图文做了上下文过滤：从非作品页发起 detail 会返回 aweme_detail:null + filter_reason:images_base
+  const filterReason = xhrResult?.data?.filter_detail?.filter_reason;
   const lastReason: DouyinExtractionReason =
-    xhrResult && xhrResult.status === 403 ? "api-forbidden" : "ssr-no-item";
+    filterReason === "images_base"
+      ? "images-filtered"
+      : xhrResult && xhrResult.status === 403
+        ? "api-forbidden"
+        : "ssr-no-item";
 
   // 4. DOM 启发式兜底
-  const domFallback = (await page.evaluate(DOM_FALLBACK_SCRIPT)) as Record<string, any> | null;
+  const domFallback = (await page.evaluate(toPageScript(DOM_FALLBACK_SCRIPT), undefined)) as Record<
+    string,
+    any
+  > | null;
 
   if (domFallback) {
     return {
@@ -303,7 +318,44 @@ export async function extractFromPageContext(
   return {
     candidate: null,
     attempts: [...postXhrAttempts, "dom-fallback"],
-    failureReason: lastReason === "api-forbidden" ? "api-forbidden" : "dom-fallback-empty",
+    failureReason:
+      lastReason === "images-filtered"
+        ? "images-filtered"
+        : lastReason === "api-forbidden"
+          ? "api-forbidden"
+          : "dom-fallback-empty",
+  };
+}
+
+/**
+ * 图文作品被上下文过滤时，改用作品页（note）重试一次
+ *
+ * 抖音只在作品页自身的上下文里放行图文 detail；从视频页/首页发起会被
+ * `filter_reason=images_base` 拦掉。同一作品最多重试一次，避免风控。
+ */
+async function retryViaNotePage(
+  page: Page,
+  awemeId: string,
+  first: PageExtractionResult,
+  timeoutMs: number
+): Promise<PageExtractionResult> {
+  if (!awemeId || page.url().includes(`/note/${awemeId}`)) {
+    return first;
+  }
+
+  const [err] = await tryit(() =>
+    page.goto(`https://www.douyin.com/note/${awemeId}`, {
+      waitUntil: "domcontentloaded",
+      timeout: timeoutMs,
+    })
+  )();
+  if (err) return first;
+
+  await sleep(1200);
+  const second = await extractFromPageContext(page, awemeId);
+  return {
+    ...second,
+    attempts: [...first.attempts, `retry-note-page:${awemeId}`, ...second.attempts],
   };
 }
 
@@ -316,10 +368,11 @@ async function extractAwemeFromLivePage(
   timeoutMs: number
 ): Promise<DouyinAwemeItem> {
   const extracted = extractDouyinUrlOrId(urlOrId);
+  // 落地页必须是作品页本身：分享页（iesdouyin）SSR 已无 videoInfoRes，且图文会因上下文不符被过滤
   const targetUrl =
     extracted.url ||
     (extracted.awemeId
-      ? `https://www.iesdouyin.com/share/video/${extracted.awemeId}`
+      ? `https://www.douyin.com/video/${extracted.awemeId}`
       : urlOrId);
 
   const interceptedRef: { data: any } = { data: null };
@@ -370,12 +423,17 @@ async function extractAwemeFromLivePage(
       }
     : await extractFromPageContext(page, resolvedId);
 
-  const raw = extraction.candidate;
+  // 图文被上下文过滤时，改用作品页（note）重试一次：detail 只在作品页上下文放行
+  const finalExtraction = extraction.candidate
+    ? extraction
+    : await retryViaNotePage(page, resolvedId, extraction, timeoutMs);
+
+  const raw = finalExtraction.candidate;
   if (!raw) {
     throw new DouyinExtractionError(
-      extraction.failureReason ?? "ssr-no-item",
+      finalExtraction.failureReason ?? "ssr-no-item",
       `[PublicAweme] 无法从作品页面提取数据: ${urlOrId}`,
-      { attempts: extraction.attempts }
+      { attempts: finalExtraction.attempts }
     );
   }
 
@@ -418,6 +476,8 @@ export async function fetchPublicAwemeItem(
       const targetId = extracted.awemeId || urlOrId;
       const raw = await options.customTransport("/aweme/v1/web/aweme/detail/", {
         aweme_id: targetId,
+        device_platform: "webapp",
+        aid: 6383,
       });
       const normalized = normalizeAweme(raw?.aweme_detail ?? raw);
       return {
