@@ -758,6 +758,8 @@ test("Tachikoma Tactical Sparks: Pipeline, CLI & Ghost Promotion Comprehensive T
       const fileContent = await readFile(promoteRes.filePath, "utf-8");
       const parsed = matter(fileContent);
       assert.equal(parsed.data.title, "大模型提示词工程第一性原理");
+      assert.equal(parsed.data.entry, "douyin-sync");
+      assert.equal(parsed.data.media_type, "video");
       assert.equal(parsed.data.extra.spark_id, douyinSpark.id);
     });
 

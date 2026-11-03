@@ -21,7 +21,7 @@ test("Phase 4: Tachikoma CLI Interface Tests", async (t) => {
   await t.test("CLI commands and options definition", () => {
     assert.equal(program.name(), "tachikoma");
     const commands = program.commands.map((c) => c.name());
-    assert.ok(commands.includes("ingest"));
+    assert.ok(commands.includes("capture") || commands.includes("ingest"));
     assert.ok(commands.includes("sync"));
     assert.ok(commands.includes("spark"));
   });

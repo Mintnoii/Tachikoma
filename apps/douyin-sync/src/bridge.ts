@@ -90,7 +90,7 @@ export const openBrowserBridge = (options: BrowserBridgeOptions = {}): BrowserBr
         });
       }
 
-      const activePage = await context.newPage();
+      const activePage = context.pages().length > 0 ? context.pages()[0]! : await context.newPage();
       // 导航至个人收藏夹页面，初始化 securitySDK 签名环境
       await activePage.goto(opts.homepageUrl || DEFAULT_HOMEPAGE, {
         waitUntil: "domcontentloaded",

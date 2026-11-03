@@ -22,5 +22,8 @@ export default defineConfig({
     "pathe",
     "radash",
     "commander",
+    "yaml",
+    "picocolors",
+    "jsonrepair",
   ],
 });

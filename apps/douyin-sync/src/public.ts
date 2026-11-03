@@ -122,12 +122,6 @@ const SSR_EXTRACT_SCRIPT = `
   const routerCandidate = deepFind(w._ROUTER_DATA?.loaderData ?? w._ROUTER_DATA);
   if (routerCandidate) return { sourceName: "_ROUTER_DATA", candidate: routerCandidate };
 
-  const initCandidate = deepFind(w.__INITIAL_STATE__);
-  if (initCandidate) return { sourceName: "__INITIAL_STATE__", candidate: initCandidate };
-
-  const propsCandidate = deepFind(w.__INIT_PROPS__);
-  if (propsCandidate) return { sourceName: "__INIT_PROPS__", candidate: propsCandidate };
-
   return null;
 }
 `;
@@ -268,6 +262,15 @@ export async function extractFromPageContext(
         ? "api-forbidden"
         : "ssr-no-item";
 
+  // 若遇到图文上下文过滤，且当前不在 /note/ 作品页，不在此处执行 DOM 兜底，留给外层 retryViaNotePage 重试
+  if (lastReason === "images-filtered" && !page.url().includes("/note/")) {
+    return {
+      candidate: null,
+      attempts: postXhrAttempts,
+      failureReason: "images-filtered",
+    };
+  }
+
   // 2. DOM 启发式兜底（XHR 与重试都失败后的最后手段）
   const domFallback = (await page.evaluate(toPageScript(DOM_FALLBACK_SCRIPT), undefined)) as Record<
     string,
@@ -280,6 +283,7 @@ export async function extractFromPageContext(
       source: "dom",
       confidence: "dom-fallback",
       attempts: [...postXhrAttempts, "dom-fallback"],
+      failureReason: lastReason === "images-filtered" ? "images-filtered" : undefined,
     };
   }
 
@@ -397,10 +401,16 @@ async function extractAwemeFromLivePage(
       }
     : await extractFromPageContext(page, resolvedId);
 
-  // 图文被上下文过滤时，改用作品页（note）重试一次：detail 只在作品页上下文放行
-  const finalExtraction = extraction.candidate
-    ? extraction
-    : await retryViaNotePage(page, resolvedId, extraction, timeoutMs);
+  // 图文被上下文过滤或仅命中 DOM 兜底时，改用作品页（note）重试一次：detail 只在作品页上下文放行
+  const needsNoteRetry =
+    !page.url().includes(`/note/`) &&
+    (extraction.failureReason === "images-filtered" ||
+      extraction.confidence === "dom-fallback" ||
+      !extraction.candidate);
+
+  const finalExtraction = needsNoteRetry
+    ? await retryViaNotePage(page, resolvedId, extraction, timeoutMs)
+    : extraction;
 
   const raw = finalExtraction.candidate;
   if (!raw) {

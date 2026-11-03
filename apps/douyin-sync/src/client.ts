@@ -157,11 +157,12 @@ export const fetchAllCollectAwemes = async (
   collectsId: string,
   maxCount = 0,
   pageSize = 20,
-  maxPages = 50
-): Promise<DouyinAwemeItem[]> => {
+  maxPages = 50,
+  startCursor = 0
+): Promise<{ items: DouyinAwemeItem[]; nextCursor: number; hasMore: boolean }> => {
   const items: DouyinAwemeItem[] = [];
   const seenIds = new Set<string>();
-  let cursor = 0;
+  let cursor = startCursor;
   let hasMore = true;
   let page = 0;
 
@@ -172,7 +173,7 @@ export const fetchAllCollectAwemes = async (
         seenIds.add(it.id);
         items.push(it);
         if (maxCount > 0 && items.length >= maxCount) {
-          return items.slice(0, maxCount);
+          return { items: items.slice(0, maxCount), nextCursor: res.cursor, hasMore: res.hasMore };
         }
       }
     }
@@ -181,5 +182,133 @@ export const fetchAllCollectAwemes = async (
     page++;
   }
 
-  return items;
+  return { items, nextCursor: cursor, hasMore };
+};
+
+/**
+ * 纯函数：获取指定合集作品列表
+ */
+export const fetchMixAwemes = async (
+  bridge: BrowserBridge,
+  mixId: string,
+  cursor: number = 0,
+  count: number = 20
+): Promise<{ items: DouyinAwemeItem[]; hasMore: boolean; cursor: number }> => {
+  const raw = await bridge.requestJson("/aweme/v1/web/mix/aweme/", {
+    mix_id: mixId,
+    cursor,
+    count,
+    device_platform: "webapp",
+    aid: 6383,
+    version_code: "170400",
+    version_name: "17.4.0",
+  });
+
+  const items = (raw?.aweme_list ?? []).map((item: any) => normalizeAweme(item));
+
+  return {
+    items,
+    hasMore: Boolean(raw?.has_more),
+    cursor: Number(raw?.cursor ?? raw?.next_cursor ?? 0),
+  };
+};
+
+/**
+ * 纯函数：全量游标分页获取指定合集内的所有作品（支持 maxCount 截断与 startCursor 断点游标）
+ */
+export const fetchAllMixAwemes = async (
+  bridge: BrowserBridge,
+  mixId: string,
+  maxCount = 0,
+  pageSize = 20,
+  maxPages = 50,
+  startCursor = 0
+): Promise<{ items: DouyinAwemeItem[]; nextCursor: number; hasMore: boolean }> => {
+  const items: DouyinAwemeItem[] = [];
+  const seenIds = new Set<string>();
+  let cursor = startCursor;
+  let hasMore = true;
+  let page = 0;
+
+  while (hasMore && page < maxPages) {
+    const res = await fetchMixAwemes(bridge, mixId, cursor, pageSize);
+    for (const it of res.items) {
+      if (!seenIds.has(it.id)) {
+        seenIds.add(it.id);
+        items.push(it);
+        if (maxCount > 0 && items.length >= maxCount) {
+          return { items: items.slice(0, maxCount), nextCursor: res.cursor, hasMore: res.hasMore };
+        }
+      }
+    }
+    hasMore = res.hasMore && res.items.length > 0;
+    cursor = res.cursor;
+    page++;
+  }
+
+  return { items, nextCursor: cursor, hasMore };
+};
+
+/**
+ * 纯函数：获取指定作者主页作品列表
+ */
+export const fetchAuthorAwemes = async (
+  bridge: BrowserBridge,
+  secUserId: string,
+  maxCursor: number = 0,
+  count: number = 18
+): Promise<{ items: DouyinAwemeItem[]; hasMore: boolean; cursor: number }> => {
+  const raw = await bridge.requestJson("/aweme/v1/web/aweme/post/", {
+    sec_user_id: secUserId,
+    max_cursor: maxCursor,
+    count,
+    device_platform: "webapp",
+    aid: 6383,
+    version_code: "170400",
+    version_name: "17.4.0",
+  });
+
+  const items = (raw?.aweme_list ?? []).map((item: any) => normalizeAweme(item));
+
+  return {
+    items,
+    hasMore: Boolean(raw?.has_more),
+    cursor: Number(raw?.max_cursor ?? raw?.cursor ?? 0),
+  };
+};
+
+/**
+ * 纯函数：全量游标分页获取指定作者主页内的所有作品（支持 maxCount 截断与 startCursor 断点游标）
+ */
+export const fetchAllAuthorAwemes = async (
+  bridge: BrowserBridge,
+  secUserId: string,
+  maxCount = 0,
+  pageSize = 18,
+  maxPages = 50,
+  startCursor = 0
+): Promise<{ items: DouyinAwemeItem[]; nextCursor: number; hasMore: boolean }> => {
+  const items: DouyinAwemeItem[] = [];
+  const seenIds = new Set<string>();
+  let cursor = startCursor;
+  let hasMore = true;
+  let page = 0;
+
+  while (hasMore && page < maxPages) {
+    const res = await fetchAuthorAwemes(bridge, secUserId, cursor, pageSize);
+    for (const it of res.items) {
+      if (!seenIds.has(it.id)) {
+        seenIds.add(it.id);
+        items.push(it);
+        if (maxCount > 0 && items.length >= maxCount) {
+          return { items: items.slice(0, maxCount), nextCursor: res.cursor, hasMore: res.hasMore };
+        }
+      }
+    }
+    hasMore = res.hasMore && res.items.length > 0;
+    cursor = res.cursor;
+    page++;
+  }
+
+  return { items, nextCursor: cursor, hasMore };
 };

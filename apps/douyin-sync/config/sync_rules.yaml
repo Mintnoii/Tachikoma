@@ -1,5 +1,5 @@
-# 抖音收藏夹自动同步规则配置（对齐 Python 既有心智）
-# 仅当执行 `tachikoma sync` 未传 -c 指定单个收藏夹时生效
+# 抖音收藏夹与创作者自动同步规则配置（对齐 Python 既有心智）
+# 仅当执行 `tachikoma sync` 未传 -c / --author / --mix 指定单项时生效
 
 # 1. 收藏夹精确名称列表（完全匹配）
 collections:
@@ -12,3 +12,18 @@ name_keywords:
 
 # 3. 单个收藏夹最大同步作品数（0 = 不限制，拉取全部）
 max_per_folder: 0
+
+# 4. 指定作者主页同步规则列表
+authors:
+  - sec_uid: MS4wLjABAAAA_ygszDRK-qMWn_87MWCX19jqvAnt_ODAkUR6UHRB-1Q
+    nickname: 神经元出逃计划
+    max_count: 5
+
+# 5. 指定合集专栏同步规则列表
+mixes:
+  - mix_id: "7616647416489445376"
+    name: "懂王Ai_面试干货"
+    max_count: 0
+  - mix_id: "7639669136712288294"
+    name: "Agent面试题合集"
+    max_count: 0

@@ -2,9 +2,14 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import { dirname, join } from "pathe";
 import { sift, tryit } from "radash";
-import { IngestionResult, persistIngestionResult, toPosixPath, DEFAULT_DESKTOP_USER_AGENT } from "@tachikoma/core";
+import { IngestionResult, persistIngestionResult, toPosixPath } from "@tachikoma/core";
 import { openBrowserBridge, closeBrowserBridge, type BrowserBridge } from "./bridge.js";
-import { fetchCollectList, fetchCollectAwemes, fetchAllCollectFolders, fetchAllCollectAwemes } from "./client.js";
+import {
+  fetchAllCollectFolders,
+  fetchAllCollectAwemes,
+  fetchAllAuthorAwemes,
+  fetchAllMixAwemes,
+} from "./client.js";
 import { filterCollectFolders, loadSyncRulesConfig } from "./filter.js";
 import { fetchPublicAwemeItem } from "./public.js";
 import { ocrGallery } from "./ocr.js";
@@ -14,8 +19,15 @@ import {
   closeReconcilerDb,
   markSynced,
   filterUnsynced,
+  getCheckpoint,
+  setCheckpoint,
 } from "./reconciliation.js";
-import { DouyinAwemeItem, DouyinSyncOptions } from "./types.js";
+import {
+  DouyinAwemeItem,
+  DouyinSyncOptions,
+  DouyinAuthorRule,
+  DouyinMixRule,
+} from "./types.js";
 import { DouyinExtractionError } from "./errors.js";
 import { DOUYIN_CDN_HEADERS } from "./cdn.js";
 
@@ -246,8 +258,261 @@ async function withSyncResources<T>(
 }
 
 /**
- * 纯函数原子流：增量同步抖音收藏夹并自动对账
+ * 内部纯函数原子流：增量同步抖音收藏夹核心逻辑
  */
+export async function syncCollectionsInternal(
+  bridge: BrowserBridge,
+  db: DatabaseSync | undefined,
+  options: DouyinSyncOptions,
+  collectId?: string
+): Promise<IngestionResult[]> {
+  const targetCollectId = collectId ?? options.collectId;
+
+  // 1. 获取全量收藏夹列表（分页循环拉全，不截断）
+  const allFolders = await fetchAllCollectFolders(bridge);
+
+  let targetFolders: typeof allFolders = [];
+  let maxPerFolder = 0;
+
+  if (targetCollectId) {
+    const found = allFolders.find((f) => f.id === targetCollectId);
+    targetFolders = [
+      found ?? {
+        id: targetCollectId,
+        name: options.folderName || "未命名收藏夹",
+        totalCount: 0,
+      },
+    ];
+  } else {
+    // 2. 加载过滤规则（优先 options 传入，其次读 sync_rules.yaml）
+    const fileRules = loadSyncRulesConfig(options.rulesConfigPath);
+    const effectiveRules = {
+      collections: options.filterRules?.collections ?? fileRules.collections,
+      nameKeywords: options.filterRules?.nameKeywords ?? fileRules.nameKeywords,
+      maxPerFolder: options.filterRules?.maxPerFolder ?? fileRules.maxPerFolder ?? 0,
+    };
+    maxPerFolder = effectiveRules.maxPerFolder;
+
+    targetFolders = filterCollectFolders(allFolders, effectiveRules);
+
+    if (targetFolders.length === 0) {
+      const hasAnyRule =
+        (effectiveRules.collections?.length ?? 0) > 0 ||
+        (effectiveRules.nameKeywords?.length ?? 0) > 0;
+      if (!hasAnyRule) {
+        console.warn(
+          "[DouyinSync] ⚠️  安全拦截：未指定同步收藏夹 ID，且未配置任何 collections/name_keywords 规则。已停止全量拉取以防污染知识库。"
+        );
+      } else {
+        console.log(
+          `[DouyinSync] 在账号的 ${allFolders.length} 个收藏夹中未匹配到符合规则的收藏夹，本次跳过。`
+        );
+      }
+      return [];
+    }
+
+    console.log(
+      `[DouyinSync] 规则命中 ${targetFolders.length}/${allFolders.length} 个收藏夹: ` +
+        targetFolders.map((f) => `「${f.name}」(${f.totalCount}条)`).join("、")
+    );
+  }
+
+  // 3. 逐个收藏夹同步作品（单夹支持全量分页拉全与增量断点检查点）
+  const folderResults: IngestionResult[][] = [];
+  for (const folder of targetFolders) {
+    const checkpoint = db ? getCheckpoint(db, "collect", folder.id) : null;
+    const startCursor = checkpoint?.lastCursor ?? 0;
+
+    const { items, nextCursor, hasMore } = await fetchAllCollectAwemes(
+      bridge,
+      folder.id,
+      maxPerFolder,
+      20,
+      50,
+      startCursor
+    );
+    const unsyncedItems = db
+      ? filterUnsynced(db, items, options.outputDir)
+      : items;
+
+    if (unsyncedItems.length > 0) {
+      console.log(
+        `[DouyinSync] 收藏夹「${folder.name}」共拉取 ${items.length} 件 (游标: ${startCursor} -> ${nextCursor})，需增量摄入 ${unsyncedItems.length} 件`
+      );
+    }
+
+    const results = await Promise.all(
+      unsyncedItems.map((item) =>
+        processAweme(item, options, db, folder.name || undefined)
+      )
+    );
+    folderResults.push(results);
+
+    // 同步成功后持久化更新检查点
+    if (db) {
+      setCheckpoint(db, "collect", folder.id, hasMore ? nextCursor : 0);
+    }
+  }
+
+  return folderResults.flat();
+}
+
+/**
+ * 内部纯函数原子流：增量同步抖音作者主页核心逻辑
+ */
+export async function syncAuthorsInternal(
+  bridge: BrowserBridge,
+  db: DatabaseSync | undefined,
+  options: DouyinSyncOptions,
+  secUid?: string
+): Promise<IngestionResult[]> {
+  const targetSecUid = secUid ?? options.authorSecUid;
+  let targetAuthors: DouyinAuthorRule[] = [];
+
+  if (targetSecUid) {
+    targetAuthors = [
+      {
+        sec_uid: targetSecUid,
+        nickname: options.authorNickname,
+        max_count: options.maxCount,
+      },
+    ];
+  } else {
+    const fileRules = loadSyncRulesConfig(options.rulesConfigPath);
+    targetAuthors =
+      options.authors ??
+      options.filterRules?.authors ??
+      fileRules.authors ??
+      [];
+  }
+
+  if (targetAuthors.length === 0) {
+    console.log("[DouyinSync] 未配置任何作者主页同步规则，本次跳过作者同步。");
+    return [];
+  }
+
+  console.log(
+    `[DouyinSync] 准备同步 ${targetAuthors.length} 位作者主页: ` +
+      targetAuthors.map((a) => `「${a.nickname || a.sec_uid}」`).join("、")
+  );
+
+  const authorResults: IngestionResult[][] = [];
+  for (const author of targetAuthors) {
+    const checkpoint = db ? getCheckpoint(db, "author", author.sec_uid) : null;
+    const startCursor = checkpoint?.lastCursor ?? 0;
+    const maxCount = author.max_count ?? options.maxCount ?? 0;
+
+    const { items, nextCursor, hasMore } = await fetchAllAuthorAwemes(
+      bridge,
+      author.sec_uid,
+      maxCount,
+      18,
+      50,
+      startCursor
+    );
+
+    const unsyncedItems = db
+      ? filterUnsynced(db, items, options.outputDir)
+      : items;
+
+    if (unsyncedItems.length > 0) {
+      console.log(
+        `[DouyinSync] 作者「${author.nickname || author.sec_uid}」共拉取 ${items.length} 件 (游标: ${startCursor} -> ${nextCursor})，需增量摄入 ${unsyncedItems.length} 件`
+      );
+    }
+
+    const subDir = `authors/${author.nickname || author.sec_uid}`;
+    const results = await Promise.all(
+      unsyncedItems.map((item) => processAweme(item, options, db, subDir))
+    );
+    authorResults.push(results);
+
+    if (db) {
+      setCheckpoint(db, "author", author.sec_uid, hasMore ? nextCursor : 0);
+    }
+  }
+
+  return authorResults.flat();
+}
+
+/**
+ * 内部纯函数原子流：增量同步抖音合集专栏核心逻辑
+ */
+export async function syncMixesInternal(
+  bridge: BrowserBridge,
+  db: DatabaseSync | undefined,
+  options: DouyinSyncOptions,
+  mixId?: string
+): Promise<IngestionResult[]> {
+  const targetMixId = mixId ?? options.mixId;
+  let targetMixes: DouyinMixRule[] = [];
+
+  if (targetMixId) {
+    targetMixes = [
+      {
+        mix_id: targetMixId,
+        name: options.mixName,
+        max_count: options.maxCount,
+      },
+    ];
+  } else {
+    const fileRules = loadSyncRulesConfig(options.rulesConfigPath);
+    targetMixes =
+      options.mixes ??
+      options.filterRules?.mixes ??
+      fileRules.mixes ??
+      [];
+  }
+
+  if (targetMixes.length === 0) {
+    console.log("[DouyinSync] 未配置任何合集专栏同步规则，本次跳过合集同步。");
+    return [];
+  }
+
+  console.log(
+    `[DouyinSync] 准备同步 ${targetMixes.length} 个合集专栏: ` +
+      targetMixes.map((m) => `「${m.name || m.mix_id}」`).join("、")
+  );
+
+  const mixResults: IngestionResult[][] = [];
+  for (const mix of targetMixes) {
+    const checkpoint = db ? getCheckpoint(db, "mix", mix.mix_id) : null;
+    const startCursor = checkpoint?.lastCursor ?? 0;
+    const maxCount = mix.max_count ?? options.maxCount ?? 0;
+
+    const { items, nextCursor, hasMore } = await fetchAllMixAwemes(
+      bridge,
+      mix.mix_id,
+      maxCount,
+      20,
+      50,
+      startCursor
+    );
+
+    const unsyncedItems = db
+      ? filterUnsynced(db, items, options.outputDir)
+      : items;
+
+    if (unsyncedItems.length > 0) {
+      console.log(
+        `[DouyinSync] 合集「${mix.name || mix.mix_id}」共拉取 ${items.length} 件 (游标: ${startCursor} -> ${nextCursor})，需增量摄入 ${unsyncedItems.length} 件`
+      );
+    }
+
+    const subDir = `mixes/${mix.name || mix.mix_id}`;
+    const results = await Promise.all(
+      unsyncedItems.map((item) => processAweme(item, options, db, subDir))
+    );
+    mixResults.push(results);
+
+    if (db) {
+      setCheckpoint(db, "mix", mix.mix_id, hasMore ? nextCursor : 0);
+    }
+  }
+
+  return mixResults.flat();
+}
+
 /**
  * 纯函数原子流：增量同步抖音收藏夹并自动对账
  *
@@ -261,85 +526,82 @@ export async function syncCollections(
   options: DouyinSyncOptions,
   collectId?: string
 ): Promise<IngestionResult[]> {
-  const targetCollectId = collectId ?? options.collectId;
-
   return await withSyncResources(options, async (bridge, db) => {
-    // 1. 获取全量收藏夹列表（分页循环拉全，不截断）
-    const allFolders = await fetchAllCollectFolders(bridge);
+    return await syncCollectionsInternal(bridge, db, options, collectId);
+  });
+}
 
-    let targetFolders: typeof allFolders = [];
-    let maxPerFolder = 0;
+/**
+ * 纯函数原子流：增量同步抖音作者主页并自动对账
+ */
+export async function syncAuthors(
+  options: DouyinSyncOptions,
+  secUid?: string
+): Promise<IngestionResult[]> {
+  return await withSyncResources(options, async (bridge, db) => {
+    return await syncAuthorsInternal(bridge, db, options, secUid);
+  });
+}
 
-    if (targetCollectId) {
-      const found = allFolders.find((f) => f.id === targetCollectId);
-      targetFolders = [
-        found ?? {
-          id: targetCollectId,
-          name: options.folderName || "未命名收藏夹",
-          totalCount: 0,
-        },
-      ];
-    } else {
-      // 2. 加载过滤规则（优先 options 传入，其次读 sync_rules.yaml）
-      const fileRules = loadSyncRulesConfig(options.rulesConfigPath);
-      const effectiveRules = {
-        collections: options.filterRules?.collections ?? fileRules.collections,
-        nameKeywords: options.filterRules?.nameKeywords ?? fileRules.nameKeywords,
-        maxPerFolder: options.filterRules?.maxPerFolder ?? fileRules.maxPerFolder ?? 0,
-      };
-      maxPerFolder = effectiveRules.maxPerFolder;
+/**
+ * 纯函数原子流：增量同步抖音合集专栏并自动对账
+ */
+export async function syncMixes(
+  options: DouyinSyncOptions,
+  mixId?: string
+): Promise<IngestionResult[]> {
+  return await withSyncResources(options, async (bridge, db) => {
+    return await syncMixesInternal(bridge, db, options, mixId);
+  });
+}
 
-      targetFolders = filterCollectFolders(allFolders, effectiveRules);
+export interface DouyinSyncAllTargets {
+  collectId?: string;
+  authorSecUid?: string;
+  mixId?: string;
+}
 
-      if (targetFolders.length === 0) {
-        const hasAnyRule =
-          (effectiveRules.collections?.length ?? 0) > 0 ||
-          (effectiveRules.nameKeywords?.length ?? 0) > 0;
-        if (!hasAnyRule) {
-          console.warn(
-            "[DouyinSync] ⚠️  安全拦截：未指定同步收藏夹 ID，且未配置任何 collections/name_keywords 规则。已停止全量拉取以防污染知识库。"
-          );
-        } else {
-          console.log(
-            `[DouyinSync] 在账号的 ${allFolders.length} 个收藏夹中未匹配到符合规则的收藏夹，本次跳过。`
-          );
-        }
-        return [];
-      }
+export interface DouyinSyncAllResult {
+  collections: IngestionResult[];
+  authors: IngestionResult[];
+  mixes: IngestionResult[];
+  total: number;
+}
 
-      console.log(
-        `[DouyinSync] 规则命中 ${targetFolders.length}/${allFolders.length} 个收藏夹: ` +
-          targetFolders.map((f) => `「${f.name}」(${f.totalCount}条)`).join("、")
-      );
+/**
+ * 纯函数原子流：统一门面同步抖音全量（收藏夹、创作者主页与合集专栏），复用同一会话资源
+ */
+export async function syncDouyinAll(
+  options: DouyinSyncOptions,
+  targets?: DouyinSyncAllTargets
+): Promise<DouyinSyncAllResult> {
+  return await withSyncResources(options, async (bridge, db) => {
+    const hasSpecificTarget = Boolean(
+      targets?.collectId || targets?.authorSecUid || targets?.mixId
+    );
+
+    let collections: IngestionResult[] = [];
+    let authors: IngestionResult[] = [];
+    let mixes: IngestionResult[] = [];
+
+    // 调度顺序策略：专栏权威优先制 (Mixes > Authors > Collections)
+    // 确保体系化专栏合集与核心作者主页优先归位入库，个人收藏夹自动享受去重，彻底消灭跨目录重复存两份
+    if (!hasSpecificTarget || targets?.mixId) {
+      mixes = await syncMixesInternal(bridge, db, options, targets?.mixId);
+    }
+    if (!hasSpecificTarget || targets?.authorSecUid) {
+      authors = await syncAuthorsInternal(bridge, db, options, targets?.authorSecUid);
+    }
+    if (!hasSpecificTarget || targets?.collectId) {
+      collections = await syncCollectionsInternal(bridge, db, options, targets?.collectId);
     }
 
-    // 3. 逐个收藏夹同步作品（单夹支持全量分页拉全）
-    const folderResults: IngestionResult[][] = [];
-    for (const folder of targetFolders) {
-      const items = await fetchAllCollectAwemes(
-        bridge,
-        folder.id,
-        maxPerFolder
-      );
-      const unsyncedItems = db
-        ? filterUnsynced(db, items, options.outputDir)
-        : items;
-
-      if (unsyncedItems.length > 0) {
-        console.log(
-          `[DouyinSync] 收藏夹「${folder.name}」共拉取 ${items.length} 件，需增量摄入 ${unsyncedItems.length} 件`
-        );
-      }
-
-      const results = await Promise.all(
-        unsyncedItems.map((item) =>
-          processAweme(item, options, db, folder.name || undefined)
-        )
-      );
-      folderResults.push(results);
-    }
-
-    return folderResults.flat();
+    return {
+      collections,
+      authors,
+      mixes,
+      total: collections.length + authors.length + mixes.length,
+    };
   });
 }
 

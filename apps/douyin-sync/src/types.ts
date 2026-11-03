@@ -40,6 +40,28 @@ export interface DouyinAwemeItem {
   confidence?: DouyinExtractionConfidence;
 }
 
+export interface DouyinAuthorRule {
+  sec_uid: string;
+  nickname?: string;
+  max_count?: number;
+}
+
+export interface DouyinMixRule {
+  mix_id: string;
+  name?: string;
+  max_count?: number;
+}
+
+export interface SyncRulesConfig {
+  collections?: string[];
+  nameKeywords?: string[];
+  maxPerFolder?: number;
+  authors?: DouyinAuthorRule[];
+  mixes?: DouyinMixRule[];
+}
+
+export type CollectFilterRules = SyncRulesConfig;
+
 export interface DouyinCollectionFolder {
   id: string;
   name: string;
@@ -58,12 +80,15 @@ export interface DouyinSyncOptions {
   dbPath?: string;
   collectId?: string;
   folderName?: string;
-  filterRules?: {
-    collections?: string[];
-    nameKeywords?: string[];
-    maxPerFolder?: number;
-  };
+  filterRules?: SyncRulesConfig;
   rulesConfigPath?: string;
+  authorSecUid?: string;
+  authorNickname?: string;
+  mixId?: string;
+  mixName?: string;
+  maxCount?: number;
+  authors?: DouyinAuthorRule[];
+  mixes?: DouyinMixRule[];
   customTransport?: (path: string, params?: Record<string, unknown>) => Promise<any>;
   customFetcher?: (url: string, init?: RequestInit) => Promise<Response>;
   customOcr?: (images: string[]) => Promise<string>;

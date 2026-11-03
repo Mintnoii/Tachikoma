@@ -11,10 +11,6 @@ import {
 } from "./types.js";
 import {
   distillWithLLM,
-  normalizeSparkCluster,
-  normalizeGhostCluster,
-  normalizeSparkType,
-  normalizeSparkTags,
 } from "./llm.js";
 
 const IMAGE_EXTENSIONS = new Set([

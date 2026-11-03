@@ -221,8 +221,11 @@ export function createSpark(db: DatabaseSync, input: CreateSparkInput): SparkRec
  * 根据 ID 查询单条战术灵感 (Read)
  */
 export function getSparkById(db: DatabaseSync, id: string): SparkRecord | null {
-  const stmt = db.prepare("SELECT * FROM sparks WHERE id = ?");
-  const row = stmt.get(id) as SparkRow | undefined;
+  // 支持完整 UUID 或前缀短 ID 检索（例如 8 位短 ID）
+  const stmt = id.length < 32
+    ? db.prepare("SELECT * FROM sparks WHERE id LIKE ? LIMIT 1")
+    : db.prepare("SELECT * FROM sparks WHERE id = ?");
+  const row = (id.length < 32 ? stmt.get(`${id}%`) : stmt.get(id)) as SparkRow | undefined;
   return row ? rowToSparkRecord(row) : null;
 }
 
@@ -295,8 +298,11 @@ export function updateSpark(
  * 删除指定战术灵感 (Delete)
  */
 export function deleteSpark(db: DatabaseSync, id: string): boolean {
+  const target = getSparkById(db, id);
+  if (!target) return false;
+
   const stmt = db.prepare("DELETE FROM sparks WHERE id = ?");
-  const result = stmt.run(id);
+  const result = stmt.run(target.id);
   return Number(result.changes) > 0;
 }
 

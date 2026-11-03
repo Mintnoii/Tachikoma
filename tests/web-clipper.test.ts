@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { rm } from "node:fs/promises";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "pathe";
 import {
   purifyArticle,
@@ -117,6 +118,23 @@ test("Phase 3: Web Clipper Sub-App Comprehensive Tests", async (t) => {
     assert.equal(parsed.data.sha256, sha256);
     assert.ok(parsed.body.includes("草薙素子少佐"));
     assert.ok(parsed.body.includes("```typescript"));
+
+    // 验证标题墓碑二次拦截生效：同一标题即使用不同 URL 亦会被阻断
+    const cacheDir = join(SANDBOX_DIR, ".cache");
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      join(cacheDir, "ignored.json"),
+      JSON.stringify([{ title: "攻壳机动队：分布式 Agent 演化体系重构" }])
+    );
+
+    await assert.rejects(
+      () =>
+        clipUrl("https://mp.weixin.qq.com/s/another_param_uuid?trace=123", {
+          outputDir: SANDBOX_DIR,
+          customFetcher: mockFetcher,
+        }),
+      /该标题已在 Ghost 墓碑账本中标记放弃炼化/
+    );
   });
 
   await t.test("Task 3.4: ArticlePurifier cleans visibility: hidden and opacity: 0 on #js_content and descendants", () => {

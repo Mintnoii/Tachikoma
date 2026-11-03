@@ -71,10 +71,12 @@ describe("全量游标分页器 fetchAllCollectFolders & fetchAllCollectAwemes",
     };
 
     // 限制只取 3 条
-    const items = await fetchAllCollectAwemes(mockBridge, "folder_1", 3, 5, 10);
+    const { items, nextCursor, hasMore } = await fetchAllCollectAwemes(mockBridge, "folder_1", 3, 5, 10);
     assert.equal(items.length, 3);
     assert.equal(items[0].id, "aweme_0_1");
     assert.equal(items[1].id, "aweme_0_2");
     assert.equal(items[2].id, "aweme_5_1");
+    assert.equal(nextCursor, 10);
+    assert.equal(hasMore, true);
   });
 });

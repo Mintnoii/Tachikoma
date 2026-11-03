@@ -5,8 +5,10 @@ import pc from "picocolors";
 import { clipUrl } from "@tachikoma/web-clipper";
 import {
   syncCollections,
+  syncAuthors,
+  syncMixes,
+  syncDouyinAll,
   fetchAwemeDetailWithTranscript,
-  fetchPublicAwemeItem,
   createAudioTranscriber,
   DouyinAwemeItem,
   DouyinExtractionError,
@@ -24,6 +26,7 @@ import {
 } from "@tachikoma/core";
 import { tryit, sift, unique } from "radash";
 import { registerSparkCommands } from "./sparks-cli.js";
+import { registerBrowserCommands } from "./browser-cli.js";
 
 function reportCliError(msg: string): void {
   console.error(pc.red(`[Tachikoma] ${msg}`));
@@ -330,15 +333,19 @@ douyinCmd
 
 program
   .command("sync")
-  .description("增量轮询抖音收藏夹并自动对账转录")
+  .description("增量轮询抖音收藏夹、创作者主页与合集专栏并自动对账转录")
   .option("-o, --output <dir>", "输出存储目录", "Ghost/_raw")
   .option("-c, --collect-id <id>", "指定单个收藏夹 ID 同步")
+  .option("-a, --author <sec_uid>", "指定单个作者主页 sec_uid 同步")
+  .option("-m, --mix <mix_id>", "指定单个合集专栏 mix_id 同步")
   .option("-k, --keywords <keywords...>", "收藏夹名称包含关键字过滤 (空格隔开，如 -k 存档 面试)")
   .option("-f, --folders <folders...>", "收藏夹精确名称过滤 (空格隔开，如 -f AI存档 心理学存档)")
-  .option("--rules-config <path>", "指定收藏夹规则配置文件路径 (默认 apps/douyin-sync/config/sync_rules.yaml)")
+  .option("--rules-config <path>", "指定规则配置文件路径 (默认 apps/douyin-sync/config/sync_rules.yaml)")
   .action(async (options: {
     output?: string;
     collectId?: string;
+    author?: string;
+    mix?: string;
     keywords?: string[];
     folders?: string[];
     rulesConfig?: string;
@@ -356,7 +363,19 @@ program
       options.output && options.output !== "Ghost/_raw"
         ? resolve(paths.rootDir, options.output)
         : paths.ghostRawDir;
-    console.log(pc.cyan(`[Tachikoma] 开始增量同步抖音收藏夹 -> ${outputDir}`));
+
+    const hasSpecificTarget = Boolean(
+      options.collectId || options.author || options.mix
+    );
+    const targetDesc = options.author
+      ? `作者主页 (${options.author})`
+      : options.mix
+      ? `合集专栏 (${options.mix})`
+      : options.collectId
+      ? `收藏夹 (${options.collectId})`
+      : `（收藏夹 / 作者 / 合集）`;
+
+    console.log(pc.cyan(`[Tachikoma] 开始增量同步抖音${targetDesc} -> ${outputDir}`));
 
     const audioTranscriber = createAudioTranscriber();
     const filterRules =
@@ -367,21 +386,45 @@ program
           }
         : undefined;
 
-    const [err, results] = await tryit(syncCollections)({
-      outputDir,
-      sqlitePath: resolve(outputDir, ".cache/sync.db"),
-      collectId: options.collectId,
-      filterRules,
-      rulesConfigPath: options.rulesConfig,
-      customTranscribe: audioTranscriber,
-      profileDir,
-    });
+    const [err, res] = await tryit(syncDouyinAll)(
+      {
+        outputDir,
+        sqlitePath: resolve(outputDir, ".cache/sync.db"),
+        collectId: options.collectId,
+        authorSecUid: options.author,
+        mixId: options.mix,
+        filterRules,
+        rulesConfigPath: options.rulesConfig,
+        customTranscribe: audioTranscriber,
+        profileDir,
+      },
+      {
+        collectId: options.collectId,
+        authorSecUid: options.author,
+        mixId: options.mix,
+      }
+    );
     if (err) {
       return reportCliError(`同步失败: ${err.message}`);
     }
 
-    console.log(pc.green(`[Tachikoma] 同步完成，本次新增摄入: ${results?.length ?? 0} 件作品。`));
+    if (hasSpecificTarget) {
+      console.log(
+        pc.green(
+          `[Tachikoma] 同步完成，本次新增摄入: ${res?.total ?? 0} 件作品。`
+        )
+      );
+    } else {
+      console.log(
+        pc.green(
+          `[Tachikoma] 同步完成，本次新增摄入: ${res?.total ?? 0} 件作品 (收藏夹: ${res?.collections.length ?? 0}, 作者: ${res?.authors.length ?? 0}, 合集: ${res?.mixes.length ?? 0})。`
+        )
+      );
+    }
   });
+
+// 注册通用浏览器子命令族
+registerBrowserCommands(program);
 
 // 直接执行入口：仅在作为 CLI 进程启动时解析参数
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

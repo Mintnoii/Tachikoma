@@ -30,12 +30,32 @@ export function inferSparkCategory(spark: SparkRecord, explicitCategory?: string
  * 将 SparkRecord 转换为标准 IngestionResult
  */
 export function sparkToIngestionResult(spark: SparkRecord): IngestionResult {
+  const isDouyin =
+    Boolean(spark.sourceUrl && /(douyin\.com|iesdouyin\.com)/i.test(spark.sourceUrl)) ||
+    Boolean(spark.tags && spark.tags.some((tag) => tag.includes("抖音")));
   const isTool = spark.type === "tool";
   const isMeme = spark.type === "meme" || Boolean(spark.assetPath);
   const isTweet = Boolean(spark.sourceUrl && /(twitter\.com|x\.com)/i.test(spark.sourceUrl));
 
-  const entry: EntryType = isTool ? "manual-research" : "manual-notes";
-  const mediaType: MediaType = isMeme ? "gallery" : isTweet ? "tweet" : "article";
+  const isGallery =
+    isMeme ||
+    Boolean(spark.tags && spark.tags.some((tag) => tag.includes("图集") || tag.includes("多图")));
+  const isVideo =
+    isDouyin &&
+    !isGallery &&
+    Boolean(
+      spark.tags?.some((tag) => tag.includes("视频") || tag.includes("转录")) ||
+      (spark.sourceUrl && /video/i.test(spark.sourceUrl))
+    );
+
+  const entry: EntryType = isDouyin ? "douyin-sync" : isTool ? "manual-research" : "manual-notes";
+  const mediaType: MediaType = isGallery
+    ? "gallery"
+    : isVideo
+      ? "video"
+      : isTweet
+        ? "tweet"
+        : "article";
 
   // 构建优雅声明式 Markdown 正文
   const content = sift([

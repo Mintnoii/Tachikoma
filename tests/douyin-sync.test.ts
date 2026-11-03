@@ -412,6 +412,7 @@ test("Phase 2: Douyin Sync Sub-App Comprehensive Tests", async (t) => {
     const results = await syncCollections({
       outputDir: SANDBOX_DIR,
       downloadMedia: false,
+      sqlitePath: DB_PATH,
       customTransport: mockTransport,
     });
 
@@ -419,6 +420,13 @@ test("Phase 2: Douyin Sync Sub-App Comprehensive Tests", async (t) => {
     const subCardPath = join(SANDBOX_DIR, "douyin", "AI存档", "大型语言模型原理与实践.md");
     const parsed = await readMarkdownFile(subCardPath);
     assert.equal(parsed.data.title, "大型语言模型原理与实践");
+
+    // 验证断点检查点已保存
+    const checkDb = openReconcilerDb(DB_PATH);
+    const cp = getCheckpoint(checkDb, "collect", "col_ai");
+    closeReconcilerDb(checkDb);
+    assert.ok(cp);
+    assert.equal(cp.lastCursor, 0); // has_more: 0 重置为 0 循环游标待下次新作品
   });
 
   await t.test("Task 2.10: fetchAwemeDetailWithTranscript extracts aweme and transcript correctly", async () => {

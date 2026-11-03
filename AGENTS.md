@@ -89,4 +89,7 @@ Tachikoma/ (pnpm Monorepo)
 - **Profile 隔离存储**：登录态严格隔离持久化于 `<workspace>/.secrets/douyin-profile`，永不提交版本库（`.gitignore` 门禁）；
 - **匿名失败自动兜底**：单条抖音作品优先纯内存匿名提取；若全败且探活本机 Profile 处于已登录态（`authed`），自动以持久化会话重试一次，成功回执与卡片标记 `confidence = "authed-session"` 与 `source = "authed-session"`；
 - **同步强前置守卫**：`tachikoma sync` 必须携带已登录 Profile，未登录时直接明确报错拦截，严禁以匿名上下文进入收藏夹抓取循环；
-- **会话管理命令**：提供无界面静默探活 `tachikoma douyin status` 与有界面扫码登录 `tachikoma douyin login`。
+- **合集专栏与作者主页不可变绑定规约 (Immutable Folder Binding)**：
+  - 作者主页落盘至 `Ghost/_raw/douyin/authors/<nickname>/`
+  - 合集专栏落盘至 `Ghost/_raw/douyin/mixes/<mixName>/`
+  - 物理目录计算 100% 绑定自本地配置规则中的 `mix.name`，完全忽略网络端动态名称，对外部作者在平台改名实现绝对免疫；断点检查点（`sync_checkpoints`）与增量对账按不可变的 `mix_id` 唯一锁死。
