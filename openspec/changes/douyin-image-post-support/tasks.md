@@ -39,6 +39,19 @@
 - [x] 6.1 `proposal.md` 保留实测对照表
 - [x] 6.2 `design.md` 补「第二根因：字符串脚本不被执行」
 
+## 7. 收藏夹同步修复（同批次发现）
+
+- [x] 7.1 `fetchCollectList` / `fetchCollectAwemes` 补 `device_platform=webapp&aid=6383`（缺省返回空列表）
+- [x] 7.2 `fetchCollectList` 改用 `collects_id_str`：`collects_id` 是 19 位整型，JS Number 丢精度导致按 id 拉作品全空
+- [x] 7.3 实测 `tachikoma sync -c <收藏夹>`：20 个收藏夹全部列出，单个收藏夹 18 条作品正常拉取
+- [x] 7.4 实测增量摄入：新增 1 件（图集，含 4 图），复跑新增 0 件，幂等成立
+- [x] 7.5 确认图集在批量同步不受 `images_base` 影响：收藏夹列表接口直接内联 `images`，不走 detail
+
+### 结论
+
+此前 `Cannot read properties of undefined (reading 'ok')` 的崩溃是 `toPageScript` 缺失的连带症状，
+修好页内脚本后已消失；批量同步的图文也不需要 detail 重试，因为列表接口自带图片。
+
 ## 实测结论（2026-11-03）
 
 两条根因叠加才导致此前的 `bridge-empty`：

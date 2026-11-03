@@ -68,13 +68,17 @@ export const fetchCollectList = async (
   const raw = await bridge.requestJson("/aweme/v1/web/collects/list/", {
     cursor,
     count,
+    // aid / device_platform 缺省时接口返回空列表（与 detail 同一套上下文校验）
+    device_platform: "webapp",
+    aid: 6383,
     version_code: "170400",
     version_name: "17.4.0",
   });
 
   const list = raw?.collects_list ?? [];
   const folders: DouyinCollectionFolder[] = list.map((item: any) => ({
-    id: String(item.collects_id),
+    // collects_id 是 19 位整型，JS Number 会丢精度（末位被抹成 0），必须优先用字符串字段
+    id: String(item.collects_id_str ?? item.collects_id),
     name: String(item.collects_name || "未命名收藏夹"),
     totalCount: Number(item.total_number ?? 0),
     coverUrl: item.cover_url?.url_list?.[0],
@@ -100,6 +104,8 @@ export const fetchCollectAwemes = async (
     collects_id: collectsId,
     cursor,
     count,
+    device_platform: "webapp",
+    aid: 6383,
     version_code: "170400",
     version_name: "17.4.0",
   });
