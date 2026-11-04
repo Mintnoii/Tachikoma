@@ -340,6 +340,7 @@ program
   .option("-m, --mix <mix_id>", "指定单个合集专栏 mix_id 同步")
   .option("-k, --keywords <keywords...>", "收藏夹名称包含关键字过滤 (空格隔开，如 -k 存档 面试)")
   .option("-f, --folders <folders...>", "收藏夹精确名称过滤 (空格隔开，如 -f AI存档 心理学存档)")
+  .option("-b, --batch-size <number>", "单批次处理作品数配额 (batch quota，0 = 不限制)", (val) => parseInt(val, 10))
   .option("--rules-config <path>", "指定规则配置文件路径 (默认 apps/douyin-sync/config/sync_rules.yaml)")
   .action(async (options: {
     output?: string;
@@ -348,6 +349,7 @@ program
     mix?: string;
     keywords?: string[];
     folders?: string[];
+    batchSize?: number;
     rulesConfig?: string;
   }) => {
     const profileDir = resolveDouyinProfileDir();
@@ -393,6 +395,7 @@ program
         collectId: options.collectId,
         authorSecUid: options.author,
         mixId: options.mix,
+        batchSize: options.batchSize,
         filterRules,
         rulesConfigPath: options.rulesConfig,
         customTranscribe: audioTranscriber,

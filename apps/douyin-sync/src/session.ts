@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync } from "node:fs";
-import { join } from "pathe";
+import { join, resolve } from "pathe";
 import { sleep, tryit } from "radash";
 import {
   getTachikomaWorkspacePaths,
@@ -32,7 +32,14 @@ export const isAuthedCookies = (cookies: SessionCookieLike[]): boolean => {
  * 若目录不存在则按需创建
  */
 export const resolveDouyinProfileDir = (customRootDir?: string): string => {
+  if (process.env.DOUYIN_PROFILE_DIR && existsSync(process.env.DOUYIN_PROFILE_DIR)) {
+    return toPosixPath(process.env.DOUYIN_PROFILE_DIR);
+  }
   const root = customRootDir ?? getTachikomaWorkspacePaths().rootDir;
+  const legacyPwProfile = toPosixPath(resolve(root, "../douyin-sync/.pw-profile"));
+  if (existsSync(legacyPwProfile)) {
+    return legacyPwProfile;
+  }
   const profileDir = toPosixPath(join(root, ".secrets/douyin-profile"));
   if (!existsSync(profileDir)) {
     mkdirSync(profileDir, { recursive: true });

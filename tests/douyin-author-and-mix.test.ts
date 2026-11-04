@@ -214,6 +214,7 @@ test("OpenSpec: 抖音作者主页 (Authors) 与合集专栏 (Mixes) 增量同�
         },
       ],
       customTransport: mockTransport,
+      customTranscribe: async () => "心智模型的本质转录文本",
     });
 
     assert.equal(results.length, 1);
@@ -249,6 +250,7 @@ test("OpenSpec: 抖音作者主页 (Authors) 与合集专栏 (Mixes) 增量同�
         },
       ],
       customTransport: mockTransport,
+      customTranscribe: async () => "心智模型的本质转录文本",
     });
     assert.equal(secondRun.length, 0);
   });
@@ -289,6 +291,7 @@ test("OpenSpec: 抖音作者主页 (Authors) 与合集专栏 (Mixes) 增量同�
         },
       ],
       customTransport: mockTransport,
+      customTranscribe: async () => "系统思考进阶转录文本",
     });
 
     assert.equal(results.length, 1);
@@ -382,6 +385,7 @@ test("OpenSpec: 抖音作者主页 (Authors) 与合集专栏 (Mixes) 增量同�
           mixes: [{ mix_id: "m1", name: "合集1" }],
         },
         customTransport: mockTransport,
+        customTranscribe: async () => "协同同步转录文本",
       }
     );
 
@@ -397,6 +401,7 @@ test("OpenSpec: 抖音作者主页 (Authors) 与合集专栏 (Mixes) 增量同�
         sqlitePath: DB_PATH,
         authorNickname: "独立作者",
         customTransport: mockTransport,
+        customTranscribe: async () => "独立作者转录文本",
       },
       { authorSecUid: "single_author_uid" }
     );

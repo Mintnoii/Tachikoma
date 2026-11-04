@@ -125,18 +125,29 @@ export async function processAweme(
 
   const downloadedAssets = isGallery ? downloadedImages : downloadedVideo;
 
-  // 正文生成
+  // 正文生成：Zero-Dirty-Card 极简契约 —— 必须具备有效转录/OCR，严禁无脑降级落盘脏卡片
   const contentBody = isGallery
     ? await (async () => {
         const ocrSources = downloadedAssets.length > 0 ? downloadedAssets : images;
-        const ocrMarkdown = options.customOcr
-          ? await options.customOcr(ocrSources)
-          : await ocrGallery(ocrSources, {
-              baseUrl: options.magpieBaseUrl,
-              apiKey: options.magpieApiKey,
-              model: options.magpieModel,
-              customFetcher: options.customFetcher,
-            });
+        if (ocrSources.length === 0) {
+          throw new Error(`图集作品缺失图片资源，无法执行 OCR: awemeId=${item.id}`);
+        }
+        const [ocrErr, ocrMarkdown] = await tryit(async () => {
+          if (options.customOcr) {
+            return await options.customOcr(ocrSources);
+          }
+          return await ocrGallery(ocrSources, {
+            baseUrl: options.magpieBaseUrl,
+            apiKey: options.magpieApiKey,
+            model: options.magpieModel,
+            customFetcher: options.customFetcher,
+          });
+        })();
+
+        if (ocrErr || !ocrMarkdown || !ocrMarkdown.trim()) {
+          throw ocrErr ?? new Error(`图集 OCR 转录失败或结果为空: awemeId=${item.id}`);
+        }
+
         return sift([
           `# ${title}`,
           "",
@@ -146,7 +157,7 @@ export async function processAweme(
           "",
           "## 图集作品 OCR 转录文字稿",
           "",
-          ocrMarkdown,
+          ocrMarkdown.trim(),
         ]).join("\n");
       })()
     : await (async () => {
@@ -154,18 +165,18 @@ export async function processAweme(
           downloadedAssets.length > 0
             ? downloadedAssets[0]
             : (item.videoPlayUrl || item.shareUrl);
-        const rawTranscript = options.customTranscribe
-          ? await options.customTranscribe(videoSource)
-          : undefined;
-
-        let transcriptMarkdown: string;
-        if (rawTranscript && rawTranscript.trim()) {
-          transcriptMarkdown = `> 🎙️ **[音频转录]**\n\n${rawTranscript.trim()}`;
-        } else if (item.desc && item.desc.trim()) {
-          transcriptMarkdown = `${item.desc.trim()}\n\n> 💡 说明 [文案描述备选]: 未获取到语音转录文本，以上内容为原作者发布的视频文案描述。`;
-        } else {
-          transcriptMarkdown = "（原作者未填写文案描述）";
+        if (!videoSource) {
+          throw new Error(`视频作品缺失有效播放地址或链接: awemeId=${item.id}`);
         }
+
+        const transcriber = options.customTranscribe ?? createAudioTranscriber();
+        const [transcribeErr, rawTranscript] = await tryit(transcriber)(videoSource);
+
+        if (transcribeErr || !rawTranscript || !rawTranscript.trim()) {
+          throw transcribeErr ?? new Error(`视频语音转录失败或结果为空: awemeId=${item.id}`);
+        }
+
+        const transcriptMarkdown = `> 🎙️ **[音频转录]**\n\n${rawTranscript.trim()}`;
 
         return sift([
           `# ${title}`,
@@ -214,7 +225,7 @@ export async function processAweme(
 
   ingestionResult.sha256 = sha256;
 
-  // 对账标记已同步
+  // 对账标记已同步（仅全流程转录并落盘成功后写入对账库，严禁脏卡片对账）
   if (db) {
     markSynced(
       db,
@@ -317,7 +328,8 @@ export async function syncCollectionsInternal(
     );
   }
 
-  // 3. 逐个收藏夹同步作品（单夹支持全量分页拉全与增量断点检查点）
+  // 3. 逐个收藏夹同步作品（单夹支持全量分页拉全与增量断点检查点，严格串行处理与配额节流）
+  const fileRules = loadSyncRulesConfig(options.rulesConfigPath);
   const folderResults: IngestionResult[][] = [];
   for (const folder of targetFolders) {
     const checkpoint = db ? getCheckpoint(db, "collect", folder.id) : null;
@@ -331,6 +343,7 @@ export async function syncCollectionsInternal(
       50,
       startCursor
     );
+    const folderSubDir = folder.name || undefined;
     const unsyncedItems = db
       ? filterUnsynced(db, items, options.outputDir)
       : items;
@@ -341,16 +354,40 @@ export async function syncCollectionsInternal(
       );
     }
 
-    const results = await Promise.all(
-      unsyncedItems.map((item) =>
-        processAweme(item, options, db, folder.name || undefined)
-      )
-    );
+    const effectiveBatchSize =
+      options.batchSize ?? options.filterRules?.batchSize ?? fileRules?.batchSize ?? 0;
+    const itemsToProcess =
+      effectiveBatchSize > 0 ? unsyncedItems.slice(0, effectiveBatchSize) : unsyncedItems;
+
+    if (itemsToProcess.length < unsyncedItems.length) {
+      console.log(
+        `[DouyinSync] 收藏夹「${folder.name}」待摄入 ${unsyncedItems.length} 件，受 batchSize=${effectiveBatchSize} 配额限制，本次处理前 ${itemsToProcess.length} 件`
+      );
+    }
+
+    const results: IngestionResult[] = [];
+    for (const item of itemsToProcess) {
+      const [err, res] = await tryit(processAweme)(item, options, db, folderSubDir);
+      if (err || !res) {
+        console.warn(
+          `[DouyinSync] ⚠️ 作品「${item.desc || item.id}」(${item.id}) 转录/处理失败，已跳过落盘以保持知识库纯洁:`,
+          err?.message
+        );
+        continue;
+      }
+      results.push(res);
+    }
     folderResults.push(results);
 
-    // 同步成功后持久化更新检查点
+    // 同步成功后持久化更新检查点：若本批次还有未消化的作品或存在处理失败项，游标保持在 startCursor，避免跨批次跳漏
     if (db) {
-      setCheckpoint(db, "collect", folder.id, hasMore ? nextCursor : 0);
+      const safeNextCursor =
+        itemsToProcess.length < unsyncedItems.length || results.length < itemsToProcess.length
+          ? startCursor
+          : hasMore
+            ? nextCursor
+            : 0;
+      setCheckpoint(db, "collect", folder.id, safeNextCursor);
     }
   }
 
@@ -367,6 +404,7 @@ export async function syncAuthorsInternal(
   secUid?: string
 ): Promise<IngestionResult[]> {
   const targetSecUid = secUid ?? options.authorSecUid;
+  const fileRules = loadSyncRulesConfig(options.rulesConfigPath);
   let targetAuthors: DouyinAuthorRule[] = [];
 
   if (targetSecUid) {
@@ -375,10 +413,10 @@ export async function syncAuthorsInternal(
         sec_uid: targetSecUid,
         nickname: options.authorNickname,
         max_count: options.maxCount,
+        batch_size: options.batchSize,
       },
     ];
   } else {
-    const fileRules = loadSyncRulesConfig(options.rulesConfigPath);
     targetAuthors =
       options.authors ??
       options.filterRules?.authors ??
@@ -411,6 +449,7 @@ export async function syncAuthorsInternal(
       startCursor
     );
 
+    const subDir = `authors/${author.nickname || author.sec_uid}`;
     const unsyncedItems = db
       ? filterUnsynced(db, items, options.outputDir)
       : items;
@@ -421,14 +460,43 @@ export async function syncAuthorsInternal(
       );
     }
 
-    const subDir = `authors/${author.nickname || author.sec_uid}`;
-    const results = await Promise.all(
-      unsyncedItems.map((item) => processAweme(item, options, db, subDir))
-    );
+    const effectiveBatchSize =
+      author.batch_size ??
+      options.batchSize ??
+      options.filterRules?.batchSize ??
+      fileRules?.batchSize ??
+      0;
+    const itemsToProcess =
+      effectiveBatchSize > 0 ? unsyncedItems.slice(0, effectiveBatchSize) : unsyncedItems;
+
+    if (itemsToProcess.length < unsyncedItems.length) {
+      console.log(
+        `[DouyinSync] 作者「${author.nickname || author.sec_uid}」待摄入 ${unsyncedItems.length} 件，受 batchSize=${effectiveBatchSize} 配额限制，本次处理前 ${itemsToProcess.length} 件`
+      );
+    }
+
+    const results: IngestionResult[] = [];
+    for (const item of itemsToProcess) {
+      const [err, res] = await tryit(processAweme)(item, options, db, subDir);
+      if (err || !res) {
+        console.warn(
+          `[DouyinSync] ⚠️ 作者「${author.nickname || author.sec_uid}」作品「${item.desc || item.id}」(${item.id}) 转录/处理失败，已跳过落盘以保持知识库纯洁:`,
+          err?.message
+        );
+        continue;
+      }
+      results.push(res);
+    }
     authorResults.push(results);
 
     if (db) {
-      setCheckpoint(db, "author", author.sec_uid, hasMore ? nextCursor : 0);
+      const safeNextCursor =
+        itemsToProcess.length < unsyncedItems.length || results.length < itemsToProcess.length
+          ? startCursor
+          : hasMore
+            ? nextCursor
+            : 0;
+      setCheckpoint(db, "author", author.sec_uid, safeNextCursor);
     }
   }
 
@@ -445,18 +513,20 @@ export async function syncMixesInternal(
   mixId?: string
 ): Promise<IngestionResult[]> {
   const targetMixId = mixId ?? options.mixId;
+  const fileRules = loadSyncRulesConfig(options.rulesConfigPath);
   let targetMixes: DouyinMixRule[] = [];
 
   if (targetMixId) {
+    const configuredMix = fileRules.mixes?.find((m) => m.mix_id === targetMixId);
     targetMixes = [
       {
         mix_id: targetMixId,
-        name: options.mixName,
-        max_count: options.maxCount,
+        name: options.mixName ?? configuredMix?.name,
+        max_count: options.maxCount ?? configuredMix?.max_count,
+        batch_size: options.batchSize ?? configuredMix?.batch_size,
       },
     ];
   } else {
-    const fileRules = loadSyncRulesConfig(options.rulesConfigPath);
     targetMixes =
       options.mixes ??
       options.filterRules?.mixes ??
@@ -489,6 +559,7 @@ export async function syncMixesInternal(
       startCursor
     );
 
+    const subDir = `mixes/${mix.name || mix.mix_id}`;
     const unsyncedItems = db
       ? filterUnsynced(db, items, options.outputDir)
       : items;
@@ -499,14 +570,43 @@ export async function syncMixesInternal(
       );
     }
 
-    const subDir = `mixes/${mix.name || mix.mix_id}`;
-    const results = await Promise.all(
-      unsyncedItems.map((item) => processAweme(item, options, db, subDir))
-    );
+    const effectiveBatchSize =
+      mix.batch_size ??
+      options.batchSize ??
+      options.filterRules?.batchSize ??
+      fileRules?.batchSize ??
+      0;
+    const itemsToProcess =
+      effectiveBatchSize > 0 ? unsyncedItems.slice(0, effectiveBatchSize) : unsyncedItems;
+
+    if (itemsToProcess.length < unsyncedItems.length) {
+      console.log(
+        `[DouyinSync] 合集「${mix.name || mix.mix_id}」待摄入 ${unsyncedItems.length} 件，受 batchSize=${effectiveBatchSize} 配额限制，本次处理前 ${itemsToProcess.length} 件`
+      );
+    }
+
+    const results: IngestionResult[] = [];
+    for (const item of itemsToProcess) {
+      const [err, res] = await tryit(processAweme)(item, options, db, subDir);
+      if (err || !res) {
+        console.warn(
+          `[DouyinSync] ⚠️ 合集「${mix.name || mix.mix_id}」作品「${item.desc || item.id}」(${item.id}) 转录/处理失败，已跳过落盘以保持知识库纯洁:`,
+          err?.message
+        );
+        continue;
+      }
+      results.push(res);
+    }
     mixResults.push(results);
 
     if (db) {
-      setCheckpoint(db, "mix", mix.mix_id, hasMore ? nextCursor : 0);
+      const safeNextCursor =
+        itemsToProcess.length < unsyncedItems.length || results.length < itemsToProcess.length
+          ? startCursor
+          : hasMore
+            ? nextCursor
+            : 0;
+      setCheckpoint(db, "mix", mix.mix_id, safeNextCursor);
     }
   }
 

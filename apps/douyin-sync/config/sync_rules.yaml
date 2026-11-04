@@ -13,6 +13,9 @@ name_keywords:
 # 3. 单个收藏夹最大同步作品数（0 = 不限制，拉取全部）
 max_per_folder: 0
 
+# 3.1 单批次处理作品数配额上限（0 = 不限制，全部消费）
+batch_size: 0
+
 # 4. 指定作者主页同步规则列表
 authors:
   - sec_uid: MS4wLjABAAAA_ygszDRK-qMWn_87MWCX19jqvAnt_ODAkUR6UHRB-1Q

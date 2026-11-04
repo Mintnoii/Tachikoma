@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "pathe";
 import { parse } from "yaml";
-import { sift } from "radash";
+import { sift, tryit } from "radash";
 import { getTachikomaWorkspacePaths } from "@tachikoma/core";
 import {
   DouyinCollectionFolder,
@@ -64,62 +64,78 @@ export function loadSyncRulesConfig(customConfigPath?: string): SyncRulesConfig 
       collections: [],
       nameKeywords: [],
       maxPerFolder: 0,
+      batchSize: 0,
       authors: [],
       mixes: [],
     };
   }
 
-  try {
-    const raw = readFileSync(targetPath, "utf-8");
-    const parsed = parse(raw) as Record<string, any>;
-
-    const authors: DouyinAuthorRule[] = Array.isArray(parsed?.authors)
-      ? sift<DouyinAuthorRule>(
-          parsed.authors.map((a: any) => {
-            const secUid = a?.sec_uid ?? a?.secUid;
-            if (!secUid) return null;
-            return {
-              sec_uid: String(secUid).trim(),
-              nickname: a.nickname ? String(a.nickname).trim() : undefined,
-              max_count: Number(a.max_count ?? a.maxCount ?? 0) || undefined,
-            };
-          })
-        )
-      : [];
-
-    const mixes: DouyinMixRule[] = Array.isArray(parsed?.mixes)
-      ? sift<DouyinMixRule>(
-          parsed.mixes.map((m: any) => {
-            const mixId = m?.mix_id ?? m?.mixId;
-            if (!mixId) return null;
-            return {
-              mix_id: String(mixId).trim(),
-              name: m.name ? String(m.name).trim() : undefined,
-              max_count: Number(m.max_count ?? m.maxCount ?? 0) || undefined,
-            };
-          })
-        )
-      : [];
-
-    return {
-      collections: Array.isArray(parsed?.collections) ? parsed.collections : [],
-      nameKeywords: Array.isArray(parsed?.name_keywords)
-        ? parsed.name_keywords
-        : Array.isArray(parsed?.nameKeywords)
-          ? parsed.nameKeywords
-          : [],
-      maxPerFolder: Number(parsed?.max_per_folder ?? parsed?.maxPerFolder ?? 0),
-      authors,
-      mixes,
-    };
-  } catch (err) {
-    console.warn(`[DouyinSync] 读取规则配置失败: ${targetPath}`, err);
+  const [readErr, raw] = tryit(readFileSync)(targetPath, "utf-8");
+  if (readErr || !raw) {
+    console.warn(`[DouyinSync] 读取规则配置失败: ${targetPath}`, readErr);
     return {
       collections: [],
       nameKeywords: [],
       maxPerFolder: 0,
+      batchSize: 0,
       authors: [],
       mixes: [],
     };
   }
+
+  const [parseErr, parsed] = tryit(parse)(raw) as [Error | undefined, Record<string, any>];
+  if (parseErr || !parsed) {
+    console.warn(`[DouyinSync] 解析规则配置 YAML 失败: ${targetPath}`, parseErr);
+    return {
+      collections: [],
+      nameKeywords: [],
+      maxPerFolder: 0,
+      batchSize: 0,
+      authors: [],
+      mixes: [],
+    };
+  }
+
+  const authors: DouyinAuthorRule[] = Array.isArray(parsed?.authors)
+    ? sift<DouyinAuthorRule>(
+        parsed.authors.map((a: any) => {
+          const secUid = a?.sec_uid ?? a?.secUid;
+          if (!secUid) return null;
+          return {
+            sec_uid: String(secUid).trim(),
+            nickname: a.nickname ? String(a.nickname).trim() : undefined,
+            max_count: Number(a.max_count ?? a.maxCount ?? 0) || undefined,
+            batch_size: Number(a.batch_size ?? a.batchSize ?? 0) || undefined,
+          };
+        })
+      )
+    : [];
+
+  const mixes: DouyinMixRule[] = Array.isArray(parsed?.mixes)
+    ? sift<DouyinMixRule>(
+        parsed.mixes.map((m: any) => {
+          const mixId = m?.mix_id ?? m?.mixId;
+          if (!mixId) return null;
+          return {
+            mix_id: String(mixId).trim(),
+            name: m.name ? String(m.name).trim() : undefined,
+            max_count: Number(m.max_count ?? m.maxCount ?? 0) || undefined,
+            batch_size: Number(m.batch_size ?? m.batchSize ?? 0) || undefined,
+          };
+        })
+      )
+    : [];
+
+  return {
+    collections: Array.isArray(parsed?.collections) ? parsed.collections : [],
+    nameKeywords: Array.isArray(parsed?.name_keywords)
+      ? parsed.name_keywords
+      : Array.isArray(parsed?.nameKeywords)
+        ? parsed.nameKeywords
+        : [],
+    maxPerFolder: Number(parsed?.max_per_folder ?? parsed?.maxPerFolder ?? 0),
+    batchSize: Number(parsed?.batch_size ?? parsed?.batchSize ?? 0),
+    authors,
+    mixes,
+  };
 }

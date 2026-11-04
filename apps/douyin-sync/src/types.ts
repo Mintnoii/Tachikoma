@@ -44,18 +44,22 @@ export interface DouyinAuthorRule {
   sec_uid: string;
   nickname?: string;
   max_count?: number;
+  batch_size?: number;
 }
 
 export interface DouyinMixRule {
   mix_id: string;
   name?: string;
   max_count?: number;
+  batch_size?: number;
 }
 
 export interface SyncRulesConfig {
   collections?: string[];
   nameKeywords?: string[];
   maxPerFolder?: number;
+  batchSize?: number;
+  batch_size?: number;
   authors?: DouyinAuthorRule[];
   mixes?: DouyinMixRule[];
 }
@@ -87,6 +91,7 @@ export interface DouyinSyncOptions {
   mixId?: string;
   mixName?: string;
   maxCount?: number;
+  batchSize?: number;
   authors?: DouyinAuthorRule[];
   mixes?: DouyinMixRule[];
   customTransport?: (path: string, params?: Record<string, unknown>) => Promise<any>;

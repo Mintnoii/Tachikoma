@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { join } from "pathe";
 import {
   openBrowserBridge,
@@ -20,6 +21,7 @@ import {
   fetchAwemeDetailWithTranscript,
   DouyinAwemeItem,
 } from "@tachikoma/douyin-sync";
+import { sleep } from "radash";
 import { readMarkdownFile } from "@tachikoma/core";
 
 const SANDBOX_DIR = join(process.cwd(), "tests/sandbox/douyin-test");
@@ -276,7 +278,7 @@ test("Phase 2: Douyin Sync Sub-App Comprehensive Tests", async (t) => {
     }
   });
 
-  await t.test("Task 2.6: DouyinPipeline video fallback to item.desc when transcript is absent", async () => {
+  await t.test("Task 2.6: 视频若未能获取到有效音频转录，processAweme 直接抛错，严禁落盘且不标记对账 (Zero-Dirty-Card)", async () => {
     const db = openReconcilerDb(DB_PATH);
     try {
       const testVideoItem: DouyinAwemeItem = {
@@ -293,54 +295,72 @@ test("Phase 2: Douyin Sync Sub-App Comprehensive Tests", async (t) => {
         shareUrl: "https://www.douyin.com/video/7300000003",
       };
 
-      const outcome = await processAweme(
-        testVideoItem,
-        {
-          outputDir: SANDBOX_DIR,
-          downloadMedia: false,
-          // 未提供 customTranscribe
+      // customTranscribe 返回 undefined 或空白，模拟 ASR 故障
+      await assert.rejects(
+        async () => {
+          await processAweme(
+            testVideoItem,
+            {
+              outputDir: SANDBOX_DIR,
+              downloadMedia: false,
+              customTranscribe: async () => undefined,
+            },
+            db
+          );
         },
-        db
+        /视频语音转录失败或结果为空/
       );
 
-      assert.equal(outcome.title, "无转录文本仅有描述的作品");
-      assert.equal(outcome.mediaType, "video");
-
+      // 验证绝不落盘，保持 Ghost 绝对纯洁
       const cardPath = join(SANDBOX_DIR, "douyin", "无转录文本仅有描述的作品.md");
-      const parsed = await readMarkdownFile(cardPath);
-      assert.ok(parsed.body.includes("## 转录内容 / Notes"));
-      assert.ok(parsed.body.includes("无转录文本仅有描述的作品"));
+      assert.equal(existsSync(cardPath), false, "Ghost 目录中绝不应存在无有效转录的脏卡片");
+
+      // 验证绝不在对账库标记已同步
+      assert.equal(isSynced(db, "7300000003"), false, "转录失败的作品绝不标记已对账");
     } finally {
       closeReconcilerDb(db);
     }
   });
 
-  await t.test("Task 2.7: DouyinPipeline video fallback to placeholder when transcript and desc are empty", async () => {
-    const testVideoItem: DouyinAwemeItem = {
-      id: "7300000004",
-      desc: "",
-      author: {
-        uid: "u400",
-        secUid: "sec_u400",
-        nickname: "荒卷大辅",
-      },
-      createTime: 1730333100,
-      mediaType: "video",
-      shareUrl: "https://www.douyin.com/video/7300000004",
-    };
+  await t.test("Task 2.7: 图集作品若 OCR 失败或为空，processAweme 直接抛错，严禁落盘且不标记对账", async () => {
+    const db = openReconcilerDb(DB_PATH);
+    try {
+      const testGalleryItem: DouyinAwemeItem = {
+        id: "7300000004",
+        desc: "OCR失败的图集作品",
+        author: {
+          uid: "u400",
+          secUid: "sec_u400",
+          nickname: "荒卷大辅",
+        },
+        createTime: 1730333100,
+        mediaType: "gallery",
+        imageUrls: ["https://example.com/img1.jpg"],
+        shareUrl: "https://www.douyin.com/video/7300000004",
+      };
 
-    const outcome = await processAweme(
-      testVideoItem,
-      {
-        outputDir: SANDBOX_DIR,
-        downloadMedia: false,
-        customTranscribe: async () => "   ", // 空白字符
-      }
-    );
+      // customOcr 返回空白，模拟 OCR 全败
+      await assert.rejects(
+        async () => {
+          await processAweme(
+            testGalleryItem,
+            {
+              outputDir: SANDBOX_DIR,
+              downloadMedia: false,
+              customOcr: async () => "   ",
+            },
+            db
+          );
+        },
+        /图集 OCR 转录失败或结果为空/
+      );
 
-    assert.equal(outcome.title, "抖音作品_7300000004");
-    assert.ok(outcome.content.includes("## 转录内容 / Notes"));
-    assert.ok(outcome.content.includes("（原作者未填写文案描述）"));
+      const cardPath = join(SANDBOX_DIR, "douyin", "OCR失败的图集作品.md");
+      assert.equal(existsSync(cardPath), false, "OCR 失败的图集绝不写入 Ghost 知识库");
+      assert.equal(isSynced(db, "7300000004"), false, "OCR 失败的作品绝不标记对账");
+    } finally {
+      closeReconcilerDb(db);
+    }
   });
 
   await t.test("Task 2.8: DouyinPipeline folderName routes card into sub-directory outputDir/douyin/<folderName>/<title>.md", async () => {
@@ -362,6 +382,7 @@ test("Phase 2: Douyin Sync Sub-App Comprehensive Tests", async (t) => {
       {
         outputDir: SANDBOX_DIR,
         downloadMedia: false,
+        customTranscribe: async () => "认知重塑与心智模型构建的语音转录测试文本",
       },
       undefined,
       "认知存档"
@@ -414,6 +435,7 @@ test("Phase 2: Douyin Sync Sub-App Comprehensive Tests", async (t) => {
       downloadMedia: false,
       sqlitePath: DB_PATH,
       customTransport: mockTransport,
+      customTranscribe: async () => "大型语言模型原理与实践语音转录文本",
     });
 
     assert.equal(results.length, 1);
@@ -461,6 +483,323 @@ test("Phase 2: Douyin Sync Sub-App Comprehensive Tests", async (t) => {
     assert.equal(data.aweme.id, "7300000007");
     assert.equal(data.aweme.author.nickname, "灵感创作者");
     assert.equal(data.transcript, "这是单条视频的语音转录测试文本");
+  });
+
+  await t.test("Task 2.11: 验证串行执行队列 (Serial Queue Execution) 杜绝并发打崩 ASR", async () => {
+    let activeWorkers = 0;
+    let maxConcurrent = 0;
+    const processOrder: string[] = [];
+
+    const mockTransport = async (path: string) => {
+      if (path.includes("/aweme/v1/web/collects/list/")) {
+        return {
+          status_code: 0,
+          collects_list: [
+            { collects_id: "col_serial", collects_name: "串行测试夹", total_number: 3 },
+          ],
+          has_more: 0,
+          cursor: 0,
+        };
+      }
+      if (path.includes("/aweme/v1/web/collects/video/list/")) {
+        return {
+          status_code: 0,
+          aweme_list: [
+            {
+              aweme_id: "serial_1",
+              desc: "视频一",
+              aweme_type: 4,
+              author: { uid: "u1", sec_uid: "s1", nickname: "作者1" },
+            },
+            {
+              aweme_id: "serial_2",
+              desc: "视频二",
+              aweme_type: 4,
+              author: { uid: "u2", sec_uid: "s2", nickname: "作者2" },
+            },
+            {
+              aweme_id: "serial_3",
+              desc: "视频三",
+              aweme_type: 4,
+              author: { uid: "u3", sec_uid: "s3", nickname: "作者3" },
+            },
+          ],
+          has_more: 0,
+          cursor: 3,
+        };
+      }
+      return {};
+    };
+
+    const mockTranscribe = async (source: string) => {
+      activeWorkers++;
+      maxConcurrent = Math.max(maxConcurrent, activeWorkers);
+      await sleep(25);
+      activeWorkers--;
+      processOrder.push(source);
+      return `转录完成: ${source}`;
+    };
+
+    const results = await syncCollections(
+      {
+        outputDir: SANDBOX_DIR,
+        downloadMedia: false,
+        collectId: "col_serial",
+        customTransport: mockTransport,
+        customTranscribe: mockTranscribe,
+      },
+      "col_serial"
+    );
+
+    assert.equal(results.length, 3);
+    assert.equal(maxConcurrent, 1, "最大并发执行数必须严格为 1，严禁 Promise.all 并发打崩 ASR");
+    assert.equal(processOrder.length, 3);
+  });
+
+  await t.test("Task 2.12: 验证批次上限配额控制 (Batch Quota / batchSize)", async () => {
+    const quotaDbPath = join(SANDBOX_DIR, "quota_test.db");
+    const mockTransport = async (path: string, params?: Record<string, unknown>) => {
+      if (path.includes("/aweme/v1/web/collects/list/")) {
+        return {
+          status_code: 0,
+          collects_list: [
+            { collects_id: "col_quota", collects_name: "配额测试夹", total_number: 4 },
+          ],
+          has_more: 0,
+          cursor: 0,
+        };
+      }
+      if (path.includes("/aweme/v1/web/collects/video/list/")) {
+        return {
+          status_code: 0,
+          aweme_list: [
+            {
+              aweme_id: "quota_1",
+              desc: "配额作品1",
+              aweme_type: 4,
+              author: { uid: "u1", sec_uid: "s1", nickname: "作者1" },
+            },
+            {
+              aweme_id: "quota_2",
+              desc: "配额作品2",
+              aweme_type: 4,
+              author: { uid: "u2", sec_uid: "s2", nickname: "作者2" },
+            },
+            {
+              aweme_id: "quota_3",
+              desc: "配额作品3",
+              aweme_type: 4,
+              author: { uid: "u3", sec_uid: "s3", nickname: "作者3" },
+            },
+            {
+              aweme_id: "quota_4",
+              desc: "配额作品4",
+              aweme_type: 4,
+              author: { uid: "u4", sec_uid: "s4", nickname: "作者4" },
+            },
+          ],
+          has_more: 0,
+          cursor: 4,
+        };
+      }
+      return {};
+    };
+
+    // 第一批次：限制 batchSize = 2，共 4 件待同步，仅消费前 2 件
+    const batch1 = await syncCollections(
+      {
+        outputDir: SANDBOX_DIR,
+        downloadMedia: false,
+        sqlitePath: quotaDbPath,
+        collectId: "col_quota",
+        batchSize: 2,
+        customTransport: mockTransport,
+        customTranscribe: async () => "转录成功",
+      },
+      "col_quota"
+    );
+
+    assert.equal(batch1.length, 2);
+    assert.equal(batch1[0].metadata?.awemeId, "quota_1");
+    assert.equal(batch1[1].metadata?.awemeId, "quota_2");
+
+    // 检查点游标安全推进：因为还有 2 件未消费，游标不应跳过未消费项
+    const checkDb1 = openReconcilerDb(quotaDbPath);
+    const cp1 = getCheckpoint(checkDb1, "collect", "col_quota");
+    assert.equal(cp1?.lastCursor, 0); // 游标停留在原处以便下次继续消费
+    assert.equal(isSynced(checkDb1, "quota_1"), true);
+    assert.equal(isSynced(checkDb1, "quota_2"), true);
+    assert.equal(isSynced(checkDb1, "quota_3"), false);
+    assert.equal(isSynced(checkDb1, "quota_4"), false);
+    closeReconcilerDb(checkDb1);
+
+    // 第二批次：再次运行 batchSize = 2，消费剩余 2 件
+    const batch2 = await syncCollections(
+      {
+        outputDir: SANDBOX_DIR,
+        downloadMedia: false,
+        sqlitePath: quotaDbPath,
+        collectId: "col_quota",
+        batchSize: 2,
+        customTransport: mockTransport,
+        customTranscribe: async () => "转录成功",
+      },
+      "col_quota"
+    );
+
+    assert.equal(batch2.length, 2);
+    assert.equal(batch2[0].metadata?.awemeId, "quota_3");
+    assert.equal(batch2[1].metadata?.awemeId, "quota_4");
+
+    // 第三批次：已全部同步，返回 0 件
+    const batch3 = await syncCollections(
+      {
+        outputDir: SANDBOX_DIR,
+        downloadMedia: false,
+        sqlitePath: quotaDbPath,
+        collectId: "col_quota",
+        batchSize: 2,
+        customTransport: mockTransport,
+      },
+      "col_quota"
+    );
+    assert.equal(batch3.length, 0);
+  });
+
+  await t.test("Task 2.13: 验证单件转录失败跳过落盘，且未对账标记，Ghost 绝对纯洁 (Zero-Dirty-Card)", async () => {
+    const zeroDirtyDbPath = join(SANDBOX_DIR, "zero_dirty_test.db");
+    const mockTransport = async (path: string) => {
+      if (path.includes("/aweme/v1/web/collects/list/")) {
+        return {
+          status_code: 0,
+          collects_list: [
+            { collects_id: "col_zero", collects_name: "纯洁夹", total_number: 2 },
+          ],
+          has_more: 0,
+          cursor: 0,
+        };
+      }
+      if (path.includes("/aweme/v1/web/collects/video/list/")) {
+        return {
+          status_code: 0,
+          aweme_list: [
+            {
+              aweme_id: "fail_transcribe_item",
+              desc: "转录失败的作品",
+              aweme_type: 4,
+              author: { uid: "u8", sec_uid: "s8", nickname: "创作者A" },
+            },
+            {
+              aweme_id: "success_item",
+              desc: "转录成功的作品",
+              aweme_type: 4,
+              author: { uid: "u9", sec_uid: "s9", nickname: "创作者B" },
+            },
+          ],
+          has_more: 0,
+          cursor: 2,
+        };
+      }
+      return {};
+    };
+
+    const mockTranscribe = async (source: string) => {
+      if (source.includes("fail_transcribe_item")) {
+        return undefined; // 模拟失败
+      }
+      return "这是成功作品的转录文字稿";
+    };
+
+    const results = await syncCollections(
+      {
+        outputDir: SANDBOX_DIR,
+        downloadMedia: false,
+        sqlitePath: zeroDirtyDbPath,
+        collectId: "col_zero",
+        customTransport: mockTransport,
+        customTranscribe: mockTranscribe,
+      },
+      "col_zero"
+    );
+
+    // 只有成功的作品被摄入，失败的被跳过
+    assert.equal(results.length, 1);
+    assert.equal(results[0].metadata?.awemeId, "success_item");
+
+    const checkDb = openReconcilerDb(zeroDirtyDbPath);
+    try {
+      // 成功作品已落盘并在 db 对账
+      assert.equal(isSynced(checkDb, "success_item"), true);
+      const successCard = join(SANDBOX_DIR, "douyin", "纯洁夹", "转录成功的作品.md");
+      assert.equal(existsSync(successCard), true);
+
+      // 失败作品绝未在 db 对账，且 Ghost 目录绝对无脏卡片
+      assert.equal(isSynced(checkDb, "fail_transcribe_item"), false);
+      const failCard = join(SANDBOX_DIR, "douyin", "纯洁夹", "转录失败的作品.md");
+      assert.equal(existsSync(failCard), false, "失败作品绝不写入 Ghost 知识库");
+    } finally {
+      closeReconcilerDb(checkDb);
+    }
+  });
+
+  await t.test("Task 2.14: 验证失败作品下次同步依然被 filterUnsynced 识别，天然支持无限自动重试", async () => {
+    const retryDbPath = join(SANDBOX_DIR, "retry_test.db");
+    const checkDb = openReconcilerDb(retryDbPath);
+
+    try {
+      const testItem: DouyinAwemeItem = {
+        id: "retry_aweme_001",
+        desc: "需自动重试的视频作品",
+        author: { uid: "u10", secUid: "s10", nickname: "少佐" },
+        createTime: 1730500200,
+        mediaType: "video",
+        shareUrl: "https://www.douyin.com/video/retry_aweme_001",
+      };
+
+      // 1. 模拟初次因 ASR 服务不可达失败
+      await assert.rejects(
+        async () => {
+          await processAweme(
+            testItem,
+            {
+              outputDir: SANDBOX_DIR,
+              downloadMedia: false,
+              customTranscribe: async () => undefined,
+            },
+            checkDb
+          );
+        },
+        /视频语音转录失败或结果为空/
+      );
+
+      // 验证未对账
+      assert.equal(isSynced(checkDb, "retry_aweme_001"), false);
+
+      // 2. 检查 filterUnsynced：由于未在 db 标记对账，它天然被识别为未同步
+      const unsynced = filterUnsynced(checkDb, [testItem], SANDBOX_DIR);
+      assert.equal(unsynced.length, 1);
+      assert.equal(unsynced[0].id, "retry_aweme_001");
+
+      // 3. 第二次同步（ASR 自愈或重试成功）
+      const retryOutcome = await processAweme(
+        testItem,
+        {
+          outputDir: SANDBOX_DIR,
+          downloadMedia: false,
+          customTranscribe: async () => "网络恢复后重试成功的语音转录文字稿",
+        },
+        checkDb
+      );
+
+      assert.equal(retryOutcome.title, "需自动重试的视频作品");
+      assert.equal(isSynced(checkDb, "retry_aweme_001"), true);
+
+      // 4. 成功后 filterUnsynced 不再返回该项
+      const afterSuccess = filterUnsynced(checkDb, [testItem], SANDBOX_DIR);
+      assert.equal(afterSuccess.length, 0);
+    } finally {
+      closeReconcilerDb(checkDb);
+    }
   });
 
   // 清理沙盒
