@@ -10,7 +10,7 @@ import {
   fetchAllAuthorAwemes,
   fetchAllMixAwemes,
 } from "./client.js";
-import { filterCollectFolders, loadSyncRulesConfig } from "./filter.js";
+import { filterCollectFolders, loadSyncRulesConfig, isScheduleTimeDue } from "./filter.js";
 import { fetchPublicAwemeItem } from "./public.js";
 import { ocrGallery } from "./ocr.js";
 import { createAudioTranscriber } from "./asr.js";
@@ -21,6 +21,7 @@ import {
   filterUnsynced,
   getCheckpoint,
   setCheckpoint,
+  getLastSyncAt,
 } from "./reconciliation.js";
 import {
   DouyinAwemeItem,
@@ -449,10 +450,29 @@ export async function syncAuthorsInternal(
       startCursor
     );
 
+    const rawKeywords = author.positioning_keywords ?? author.positioningKeywords;
+    const keywords = sift(
+      (rawKeywords ?? []).map((k) => String(k).trim())
+    );
+
+    const matchedItems =
+      keywords.length > 0
+        ? items.filter((item) => {
+            const desc = (item.desc || "").toLowerCase();
+            return keywords.some((kw) => desc.includes(kw.toLowerCase()));
+          })
+        : items;
+
+    if (keywords.length > 0) {
+      console.log(
+        `[DouyinSync] 作者「${author.nickname || author.sec_uid}」按定位关键词 [${keywords.join(", ")}] 过滤: ${matchedItems.length}/${items.length} 件命中`
+      );
+    }
+
     const subDir = `authors/${author.nickname || author.sec_uid}`;
     const unsyncedItems = db
-      ? filterUnsynced(db, items, options.outputDir)
-      : items;
+      ? filterUnsynced(db, matchedItems, options.outputDir)
+      : matchedItems;
 
     if (unsyncedItems.length > 0) {
       console.log(
@@ -498,6 +518,10 @@ export async function syncAuthorsInternal(
             : 0;
       setCheckpoint(db, "author", author.sec_uid, safeNextCursor);
     }
+  }
+
+  if (db) {
+    setCheckpoint(db, "track", "author", 0);
   }
 
   return authorResults.flat();
@@ -610,6 +634,10 @@ export async function syncMixesInternal(
     }
   }
 
+  if (db) {
+    setCheckpoint(db, "track", "mix", 0);
+  }
+
   return mixResults.flat();
 }
 
@@ -659,6 +687,7 @@ export interface DouyinSyncAllTargets {
   collectId?: string;
   authorSecUid?: string;
   mixId?: string;
+  forceAll?: boolean;
 }
 
 export interface DouyinSyncAllResult {
@@ -679,19 +708,63 @@ export async function syncDouyinAll(
     const hasSpecificTarget = Boolean(
       targets?.collectId || targets?.authorSecUid || targets?.mixId
     );
+    const forceAll = Boolean(options.forceAll || targets?.forceAll);
 
     let collections: IngestionResult[] = [];
     let authors: IngestionResult[] = [];
     let mixes: IngestionResult[] = [];
 
+    const fileRules = loadSyncRulesConfig(options.rulesConfigPath);
+    const now = options.now ?? new Date();
+
     // 调度顺序策略：专栏权威优先制 (Mixes > Authors > Collections)
     // 确保体系化专栏合集与核心作者主页优先归位入库，个人收藏夹自动享受去重，彻底消灭跨目录重复存两份
     if (!hasSpecificTarget || targets?.mixId) {
-      mixes = await syncMixesInternal(bridge, db, options, targets?.mixId);
+      const isExplicitMix = Boolean(targets?.mixId);
+      const mixTimes =
+        options.mix_times ??
+        options.mixTimes ??
+        options.filterRules?.mix_times ??
+        options.filterRules?.mixTimes ??
+        fileRules.mix_times ??
+        fileRules.mixTimes;
+      const lastMixSync = db ? getLastSyncAt(db, "mix") : null;
+      const isDue = isExplicitMix || forceAll || isScheduleTimeDue(now, lastMixSync, mixTimes);
+
+      if (isDue) {
+        mixes = await syncMixesInternal(bridge, db, options, targets?.mixId);
+      } else {
+        console.log(
+          `[DouyinSync] ⏰ 合集专栏未到计划同步时刻 (配置: [${mixTimes?.join(", ")}]，上次同步: ${
+            lastMixSync ? new Date(lastMixSync).toLocaleTimeString() : "从未"
+          })，本次跳过。`
+        );
+      }
     }
+
     if (!hasSpecificTarget || targets?.authorSecUid) {
-      authors = await syncAuthorsInternal(bridge, db, options, targets?.authorSecUid);
+      const isExplicitAuthor = Boolean(targets?.authorSecUid);
+      const authorTimes =
+        options.author_times ??
+        options.authorTimes ??
+        options.filterRules?.author_times ??
+        options.filterRules?.authorTimes ??
+        fileRules.author_times ??
+        fileRules.authorTimes;
+      const lastAuthorSync = db ? getLastSyncAt(db, "author") : null;
+      const isDue = isExplicitAuthor || forceAll || isScheduleTimeDue(now, lastAuthorSync, authorTimes);
+
+      if (isDue) {
+        authors = await syncAuthorsInternal(bridge, db, options, targets?.authorSecUid);
+      } else {
+        console.log(
+          `[DouyinSync] ⏰ 创作者主页未到计划同步时刻 (配置: [${authorTimes?.join(", ")}]，上次同步: ${
+            lastAuthorSync ? new Date(lastAuthorSync).toLocaleTimeString() : "从未"
+          })，本次跳过。`
+        );
+      }
     }
+
     if (!hasSpecificTarget || targets?.collectId) {
       collections = await syncCollectionsInternal(bridge, db, options, targets?.collectId);
     }

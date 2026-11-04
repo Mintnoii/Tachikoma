@@ -93,3 +93,11 @@ Tachikoma/ (pnpm Monorepo)
   - 作者主页落盘至 `Ghost/_raw/douyin/authors/<nickname>/`
   - 合集专栏落盘至 `Ghost/_raw/douyin/mixes/<mixName>/`
   - 物理目录计算 100% 绑定自本地配置规则中的 `mix.name`，完全忽略网络端动态名称，对外部作者在平台改名实现绝对免疫；断点检查点（`sync_checkpoints`）与增量对账按不可变的 `mix_id` 唯一锁死。
+
+---
+
+## 5. Python 版重构差异与架构取舍 (Architectural Trade-offs)
+
+从原 Python 版 `douyin-sync` 迁移重构时，以下两项旧版特性显式不予在当前版本实现：
+- **`note_enhance` (LLM 结构化增强与抽帧)**：旧版在摄入期调 LLM 进行总结，但 Ghost 系统拥有下游专属的演化炼化流水线（`Ghost/.pi/lib/pipeline.ts`），`_raw/` 底座应遵循 100% 只读原声不可变原则，保留裸转录原稿最纯粹；
+- **`downloadMedia` (全量本地音视频与封面落地)**：旧版默认把几百 MB 的 `.mp4` 文件保存在本地，易导致硬盘空间迅速膨胀。当前版本坚持“内存流式抽音频转录、不落盘巨型视频文件”的轻量化设计，严防垃圾视频占用磁盘空间。

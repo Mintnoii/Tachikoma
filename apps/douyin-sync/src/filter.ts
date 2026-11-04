@@ -50,6 +50,73 @@ export function filterCollectFolders(
 }
 
 /**
+ * 纯函数：判断当前时间点是否已达到计划时刻（支持 HH:MM 格式计划点与跨午夜时间判定）
+ *
+ * 逻辑：
+ * 1. 若未配置 times 或 times 为空，视为时刻门控未开启，始终返回 true；
+ * 2. 过滤并解析合法 HH:MM 格式（小时 0-23，分钟 0-59）；
+ * 3. 获取距离 now 最近的已过去的计划时刻（支持跨午夜，如 00:30 时最近计划时刻为昨晚 23:00）；
+ * 4. 若未曾同步过 (lastSyncAt 为空或 <= 0)，返回 true；
+ * 5. 若上次同步时间戳 lastSyncAt 小于该最近计划时刻，说明该时刻尚未同步，返回 true；反之返回 false。
+ */
+export function isScheduleTimeDue(
+  now: Date,
+  lastSyncAt: number | null | undefined,
+  times?: string[]
+): boolean {
+  if (!times || times.length === 0) {
+    return true;
+  }
+
+  const validTimes = sift(
+    times.map((t) => {
+      const match = /^(\d{1,2}):(\d{2})$/.exec(String(t).trim());
+      if (!match) return null;
+      const hours = Number(match[1]);
+      const minutes = Number(match[2]);
+      if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+      return { hours, minutes };
+    })
+  );
+
+  if (validTimes.length === 0) {
+    return true;
+  }
+
+  const nowMs = now.getTime();
+  if (Number.isNaN(nowMs)) {
+    return true;
+  }
+
+  // 构造今日与昨日的所有计划时刻时间戳
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const date = now.getDate();
+
+  const candidates = validTimes.flatMap(({ hours, minutes }) => {
+    const todayCandidate = new Date(year, month, date, hours, minutes, 0, 0).getTime();
+    const yesterdayCandidate = new Date(year, month, date - 1, hours, minutes, 0, 0).getTime();
+    return [todayCandidate, yesterdayCandidate];
+  });
+
+  // 筛选出所有在当前时间及之前的计划点
+  const pastCandidates = candidates.filter((ts) => ts <= nowMs);
+  if (pastCandidates.length === 0) {
+    return true;
+  }
+
+  // 最近已过去的计划时刻
+  const mostRecentScheduleMs = Math.max(...pastCandidates);
+
+  if (lastSyncAt === null || lastSyncAt === undefined || lastSyncAt <= 0) {
+    return true;
+  }
+
+  const lastSyncMs = lastSyncAt < 1e11 ? lastSyncAt * 1000 : lastSyncAt;
+  return lastSyncMs < mostRecentScheduleMs;
+}
+
+/**
  * 定位并读取同步规则配置（sync_rules.yaml）
  */
 export function loadSyncRulesConfig(customConfigPath?: string): SyncRulesConfig {
@@ -59,41 +126,33 @@ export function loadSyncRulesConfig(customConfigPath?: string): SyncRulesConfig 
     targetPath = resolve(rootDir, "apps/douyin-sync/config/sync_rules.yaml");
   }
 
+  const emptyConfig: SyncRulesConfig = {
+    collections: [],
+    nameKeywords: [],
+    maxPerFolder: 0,
+    batchSize: 0,
+    authors: [],
+    mixes: [],
+    author_times: undefined,
+    authorTimes: undefined,
+    mix_times: undefined,
+    mixTimes: undefined,
+  };
+
   if (!existsSync(targetPath)) {
-    return {
-      collections: [],
-      nameKeywords: [],
-      maxPerFolder: 0,
-      batchSize: 0,
-      authors: [],
-      mixes: [],
-    };
+    return emptyConfig;
   }
 
   const [readErr, raw] = tryit(readFileSync)(targetPath, "utf-8");
   if (readErr || !raw) {
     console.warn(`[DouyinSync] 读取规则配置失败: ${targetPath}`, readErr);
-    return {
-      collections: [],
-      nameKeywords: [],
-      maxPerFolder: 0,
-      batchSize: 0,
-      authors: [],
-      mixes: [],
-    };
+    return emptyConfig;
   }
 
   const [parseErr, parsed] = tryit(parse)(raw) as [Error | undefined, Record<string, any>];
   if (parseErr || !parsed) {
     console.warn(`[DouyinSync] 解析规则配置 YAML 失败: ${targetPath}`, parseErr);
-    return {
-      collections: [],
-      nameKeywords: [],
-      maxPerFolder: 0,
-      batchSize: 0,
-      authors: [],
-      mixes: [],
-    };
+    return emptyConfig;
   }
 
   const authors: DouyinAuthorRule[] = Array.isArray(parsed?.authors)
@@ -101,11 +160,18 @@ export function loadSyncRulesConfig(customConfigPath?: string): SyncRulesConfig 
         parsed.authors.map((a: any) => {
           const secUid = a?.sec_uid ?? a?.secUid;
           if (!secUid) return null;
+          const rawKeywords = a?.positioning_keywords ?? a?.positioningKeywords;
+          const positioningKeywords = Array.isArray(rawKeywords)
+            ? sift(rawKeywords.map((k: any) => String(k).trim()))
+            : undefined;
           return {
             sec_uid: String(secUid).trim(),
             nickname: a.nickname ? String(a.nickname).trim() : undefined,
             max_count: Number(a.max_count ?? a.maxCount ?? 0) || undefined,
             batch_size: Number(a.batch_size ?? a.batchSize ?? 0) || undefined,
+            positioning: a.positioning ? String(a.positioning).trim() : undefined,
+            positioning_keywords: positioningKeywords,
+            positioningKeywords: positioningKeywords,
           };
         })
       )
@@ -126,6 +192,18 @@ export function loadSyncRulesConfig(customConfigPath?: string): SyncRulesConfig 
       )
     : [];
 
+  const authorTimes = Array.isArray(parsed?.author_times)
+    ? sift(parsed.author_times.map((t: any) => String(t).trim()))
+    : Array.isArray(parsed?.authorTimes)
+      ? sift(parsed.authorTimes.map((t: any) => String(t).trim()))
+      : undefined;
+
+  const mixTimes = Array.isArray(parsed?.mix_times)
+    ? sift(parsed.mix_times.map((t: any) => String(t).trim()))
+    : Array.isArray(parsed?.mixTimes)
+      ? sift(parsed.mixTimes.map((t: any) => String(t).trim()))
+      : undefined;
+
   return {
     collections: Array.isArray(parsed?.collections) ? parsed.collections : [],
     nameKeywords: Array.isArray(parsed?.name_keywords)
@@ -137,5 +215,9 @@ export function loadSyncRulesConfig(customConfigPath?: string): SyncRulesConfig 
     batchSize: Number(parsed?.batch_size ?? parsed?.batchSize ?? 0),
     authors,
     mixes,
+    author_times: authorTimes,
+    authorTimes,
+    mix_times: mixTimes,
+    mixTimes,
   };
 }

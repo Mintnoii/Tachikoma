@@ -342,6 +342,7 @@ program
   .option("-f, --folders <folders...>", "收藏夹精确名称过滤 (空格隔开，如 -f AI存档 心理学存档)")
   .option("-b, --batch-size <number>", "单批次处理作品数配额 (batch quota，0 = 不限制)", (val) => parseInt(val, 10))
   .option("--rules-config <path>", "指定规则配置文件路径 (默认 apps/douyin-sync/config/sync_rules.yaml)")
+  .option("--force-all", "强制执行全量同步，豁免计划时刻门控 (author_times / mix_times)")
   .action(async (options: {
     output?: string;
     collectId?: string;
@@ -351,6 +352,7 @@ program
     folders?: string[];
     batchSize?: number;
     rulesConfig?: string;
+    forceAll?: boolean;
   }) => {
     const profileDir = resolveDouyinProfileDir();
     const sessionStatus = await hasDouyinSession(profileDir);
@@ -400,11 +402,13 @@ program
         rulesConfigPath: options.rulesConfig,
         customTranscribe: audioTranscriber,
         profileDir,
+        forceAll: options.forceAll,
       },
       {
         collectId: options.collectId,
         authorSecUid: options.author,
         mixId: options.mix,
+        forceAll: options.forceAll,
       }
     );
     if (err) {

@@ -124,6 +124,25 @@ export function setCheckpoint(
 }
 
 /**
+ * 获取指定目标类型（或目标 ID）最近一次同步的时间戳（毫秒）
+ */
+export function getLastSyncAt(
+  db: DatabaseSync,
+  targetType: string,
+  targetId?: string
+): number | null {
+  if (targetId) {
+    const cp = getCheckpoint(db, targetType, targetId);
+    return cp?.lastSyncedAt ?? null;
+  }
+  const stmt = db.prepare(
+    "SELECT MAX(last_synced_at) as max_sync FROM sync_checkpoints WHERE target_type = ? OR (target_type = 'track' AND target_id = ?)"
+  );
+  const row = stmt.get(targetType, targetType) as { max_sync: number | null } | undefined;
+  return row?.max_sync ?? null;
+}
+
+/**
  * 关闭对账数据库连接
  */
 export function closeReconcilerDb(db: DatabaseSync): void {

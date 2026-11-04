@@ -16,6 +16,8 @@ import {
   openReconcilerDb,
   getCheckpoint,
   closeReconcilerDb,
+  isScheduleTimeDue,
+  getLastSyncAt,
   type BrowserBridge,
 } from "@tachikoma/douyin-sync";
 import { program } from "@tachikoma/cli";
@@ -411,7 +413,7 @@ test("OpenSpec: 抖音作者主页 (Authors) 与合集专栏 (Mixes) 增量同�
     assert.equal(authorOnly.total, 1);
   });
 
-  await t.test("3.2: CLI sync 命令支持 --author 与 --mix 选项定义", () => {
+  await t.test("3.2: CLI sync 命令支持 --author, --mix 与 --force-all 选项定义", () => {
     const syncCmd = program.commands.find((c) => c.name() === "sync");
     assert.ok(syncCmd);
 
@@ -419,5 +421,226 @@ test("OpenSpec: 抖音作者主页 (Authors) 与合集专栏 (Mixes) 增量同�
     assert.ok(optionFlags.some((f) => f.includes("--author")));
     assert.ok(optionFlags.some((f) => f.includes("--mix")));
     assert.ok(optionFlags.some((f) => f.includes("--collect-id")));
+    assert.ok(optionFlags.some((f) => f.includes("--force-all")));
+  });
+
+  await t.test("OpenSpec Task 1: 作者主页定位关键词过滤 (Author Positioning Keywords Filter)", async () => {
+    const mockTransport = async (path: string) => {
+      if (path.includes("/aweme/v1/web/aweme/post/")) {
+        return {
+          status_code: 0,
+          has_more: 0,
+          max_cursor: 3,
+          aweme_list: [
+            {
+              aweme_id: "pos_post_1",
+              desc: "深入浅出大模型与 Agent 架构实践",
+              aweme_type: 4,
+              author: { uid: "u_pos", sec_uid: "sec_pos_author", nickname: "AI布道师" },
+              create_time: 1730410000,
+            },
+            {
+              aweme_id: "pos_post_2",
+              desc: "今天和朋友在西湖边喝咖啡随记",
+              aweme_type: 4,
+              author: { uid: "u_pos", sec_uid: "sec_pos_author", nickname: "AI布道师" },
+              create_time: 1730410100,
+            },
+            {
+              aweme_id: "pos_post_3",
+              desc: "最新开源 rag 框架评测与落地经验",
+              aweme_type: 4,
+              author: { uid: "u_pos", sec_uid: "sec_pos_author", nickname: "AI布道师" },
+              create_time: 1730410200,
+            },
+          ],
+        };
+      }
+      return {};
+    };
+
+    const results = await syncAuthors({
+      outputDir: SANDBOX_DIR,
+      sqlitePath: DB_PATH,
+      authors: [
+        {
+          sec_uid: "sec_pos_author",
+          nickname: "AI布道师",
+          positioning: "聚焦大模型与Agent",
+          positioning_keywords: ["Agent", "RAG"],
+        },
+      ],
+      customTransport: mockTransport,
+      customTranscribe: async () => "定位测试转录文本",
+    });
+
+    // 验证只有包含 Agent 或 RAG (不区分大小写) 的两条作品入库
+    assert.equal(results.length, 2);
+    assert.equal(results[0].title, "深入浅出大模型与 Agent 架构实践");
+    assert.equal(results[1].title, "最新开源 rag 框架评测与落地经验");
+
+    // 验证文件落盘情况：命中的入库，未命中的生活随笔绝对不落盘
+    const hitFile1 = join(SANDBOX_DIR, "douyin/authors/AI布道师/深入浅出大模型与 Agent 架构实践.md");
+    const hitFile2 = join(SANDBOX_DIR, "douyin/authors/AI布道师/最新开源 rag 框架评测与落地经验.md");
+    const missFile = join(SANDBOX_DIR, "douyin/authors/AI布道师/今天和朋友在西湖边喝咖啡随记.md");
+    assert.ok(existsSync(hitFile1));
+    assert.ok(existsSync(hitFile2));
+    assert.ok(!existsSync(missFile));
+  });
+
+  await t.test("OpenSpec Task 2.1: isScheduleTimeDue 纯函数时刻门控与跨午夜判定", () => {
+    // 1. 无规则或空规则时恒为 true
+    assert.equal(isScheduleTimeDue(new Date(), null, undefined), true);
+    assert.equal(isScheduleTimeDue(new Date(), null, []), true);
+    assert.equal(isScheduleTimeDue(new Date(), Date.now(), []), true);
+
+    // 2. 从未同步过 (lastSyncAt 为 null / 0 / undefined) 时恒为 true
+    const times = ["12:00", "20:00"];
+    assert.equal(isScheduleTimeDue(new Date(2026, 10, 5, 14, 0), null, times), true);
+    assert.equal(isScheduleTimeDue(new Date(2026, 10, 5, 14, 0), 0, times), true);
+
+    // 3. 常规日内计划时刻
+    // now = 2026-11-05 11:30 (未到 12:00)
+    const nowBeforeNoon = new Date(2026, 10, 5, 11, 30);
+    // 昨晚 20:30 同步过 -> false (今日 12:00 未到)
+    const lastSyncYesterdayDone = new Date(2026, 10, 4, 20, 30).getTime();
+    assert.equal(isScheduleTimeDue(nowBeforeNoon, lastSyncYesterdayDone, times), false);
+    // 昨晚 19:30 同步（昨晚 20:00 漏跑）-> true (昨晚 20:00 已过期未补跑)
+    const lastSyncYesterdayMissed = new Date(2026, 10, 4, 19, 30).getTime();
+    assert.equal(isScheduleTimeDue(nowBeforeNoon, lastSyncYesterdayMissed, times), true);
+
+    // now = 2026-11-05 12:05 (已到 12:00)
+    const nowAfterNoon = new Date(2026, 10, 5, 12, 5);
+    // 昨晚 20:30 同步 -> true (今日 12:00 待同步)
+    assert.equal(isScheduleTimeDue(nowAfterNoon, lastSyncYesterdayDone, times), true);
+    // 12:01 已经同步过 -> false (今日 12:00 已完成)
+    const lastSyncJustNow = new Date(2026, 10, 5, 12, 1).getTime();
+    assert.equal(isScheduleTimeDue(nowAfterNoon, lastSyncJustNow, times), false);
+
+    // 4. 跨午夜计划时刻 (e.g. 01:00 与 23:00)
+    const crossMidnightTimes = ["01:00", "23:00"];
+    // now = 2026-11-05 00:30 (过午夜半小时，今日 01:00 未到，最近时刻为昨日 23:00)
+    const nowMidnight = new Date(2026, 10, 5, 0, 30);
+    // 昨日 23:05 同步过 -> false (昨日 23:00 已完成，今日 01:00 未到)
+    const syncAt2305 = new Date(2026, 10, 4, 23, 5).getTime();
+    assert.equal(isScheduleTimeDue(nowMidnight, syncAt2305, crossMidnightTimes), false);
+    // 昨日 22:30 同步 (昨日 23:00 漏跑) -> true
+    const syncAt2230 = new Date(2026, 10, 4, 22, 30).getTime();
+    assert.equal(isScheduleTimeDue(nowMidnight, syncAt2230, crossMidnightTimes), true);
+
+    // now = 2026-11-05 01:10 (今日 01:00 已到)
+    const nowPastOne = new Date(2026, 10, 5, 1, 10);
+    // 昨日 23:05 同步过 -> true (今日 01:00 待跑)
+    assert.equal(isScheduleTimeDue(nowPastOne, syncAt2305, crossMidnightTimes), true);
+    // 今日 01:02 同步过 -> false (今日 01:00 已完成)
+    const syncAt0102 = new Date(2026, 10, 5, 1, 2).getTime();
+    assert.equal(isScheduleTimeDue(nowPastOne, syncAt0102, crossMidnightTimes), false);
+  });
+
+  await t.test("OpenSpec Task 2.3 & 2.4: syncDouyinAll 计划时刻调度门控与 forceAll 豁免", async () => {
+    const mockTransport = async (path: string, params?: Record<string, unknown>) => {
+      if (path.includes("/aweme/v1/web/collects/list/")) {
+        return {
+          status_code: 0,
+          collects_list: [{ collects_id: "col_gate_1", collects_name: "常态收藏", total_number: 1 }],
+          has_more: 0,
+          cursor: 0,
+        };
+      }
+      if (path.includes("/aweme/v1/web/collects/video/list/")) {
+        return {
+          status_code: 0,
+          has_more: 0,
+          cursor: 1,
+          aweme_list: [
+            {
+              aweme_id: "col_gate_aweme_1",
+              desc: "常态收藏条目",
+              aweme_type: 4,
+              author: { uid: "u_c", sec_uid: "s_c", nickname: "作者C" },
+              create_time: 1730420000,
+            },
+          ],
+        };
+      }
+      if (path.includes("/aweme/v1/web/aweme/post/")) {
+        return {
+          status_code: 0,
+          has_more: 0,
+          max_cursor: 1,
+          aweme_list: [
+            {
+              aweme_id: "author_gate_aweme_1",
+              desc: "计划时刻作者条目",
+              aweme_type: 4,
+              author: { uid: "u_a", sec_uid: "s_gate_author", nickname: "门控作者" },
+              create_time: 1730420100,
+            },
+          ],
+        };
+      }
+      if (path.includes("/aweme/v1/web/mix/aweme/")) {
+        return {
+          status_code: 0,
+          has_more: 0,
+          cursor: 1,
+          aweme_list: [
+            {
+              aweme_id: "mix_gate_aweme_1",
+              desc: "计划时刻合集条目",
+              aweme_type: 4,
+              author: { uid: "u_m", sec_uid: "s_m", nickname: "合集作者" },
+              create_time: 1730420200,
+            },
+          ],
+        };
+      }
+      return {};
+    };
+
+    const rules = {
+      collections: ["常态收藏"],
+      authors: [{ sec_uid: "s_gate_author", nickname: "门控作者" }],
+      mixes: [{ mix_id: "m_gate", name: "门控合集" }],
+      author_times: ["12:00", "20:00"],
+      mix_times: ["12:00", "20:00"],
+    };
+
+    // 预先写入今天 11:00 的同步检查点，模拟作者与合集刚刚同步过
+    const db = openReconcilerDb(DB_PATH);
+    const syncAt1100 = new Date(2026, 10, 5, 11, 0).getTime();
+    db.prepare("INSERT OR REPLACE INTO sync_checkpoints (target_type, target_id, last_cursor, last_synced_at) VALUES (?, ?, ?, ?)").run("author", "s_gate_author", 0, syncAt1100);
+    db.prepare("INSERT OR REPLACE INTO sync_checkpoints (target_type, target_id, last_cursor, last_synced_at) VALUES (?, ?, ?, ?)").run("mix", "m_gate", 0, syncAt1100);
+    closeReconcilerDb(db);
+
+    // 1. 在 11:30 执行常规 syncDouyinAll：作者与合集未到 12:00 计划时刻，应跳过；收藏夹正常拉取
+    const resSkipped = await syncDouyinAll({
+      outputDir: SANDBOX_DIR,
+      sqlitePath: DB_PATH,
+      filterRules: rules,
+      now: new Date(2026, 10, 5, 11, 30),
+      customTransport: mockTransport,
+      customTranscribe: async () => "门控转录",
+    });
+
+    assert.equal(resSkipped.collections.length, 1);
+    assert.equal(resSkipped.authors.length, 0, "作者未到计划时刻应跳过");
+    assert.equal(resSkipped.mixes.length, 0, "合集未到计划时刻应跳过");
+    assert.equal(resSkipped.total, 1);
+
+    // 2. 在 11:30 传入 forceAll: true 强制全量：豁免计划时刻，全量执行
+    const resForced = await syncDouyinAll({
+      outputDir: SANDBOX_DIR,
+      sqlitePath: DB_PATH,
+      filterRules: rules,
+      now: new Date(2026, 10, 5, 11, 30),
+      forceAll: true,
+      customTransport: mockTransport,
+      customTranscribe: async () => "门控转录",
+    });
+
+    assert.equal(resForced.authors.length, 1, "forceAll 时应强制执行作者同步");
+    assert.equal(resForced.mixes.length, 1, "forceAll 时应强制执行合集同步");
+    assert.equal(resForced.total, 2); // 收藏夹之前已同步过对账，这里新增 2 个
   });
 });

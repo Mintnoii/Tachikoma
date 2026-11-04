@@ -45,6 +45,9 @@ export interface DouyinAuthorRule {
   nickname?: string;
   max_count?: number;
   batch_size?: number;
+  positioning?: string;
+  positioning_keywords?: string[];
+  positioningKeywords?: string[];
 }
 
 export interface DouyinMixRule {
@@ -62,6 +65,10 @@ export interface SyncRulesConfig {
   batch_size?: number;
   authors?: DouyinAuthorRule[];
   mixes?: DouyinMixRule[];
+  author_times?: string[];
+  authorTimes?: string[];
+  mix_times?: string[];
+  mixTimes?: string[];
 }
 
 export type CollectFilterRules = SyncRulesConfig;
@@ -94,6 +101,12 @@ export interface DouyinSyncOptions {
   batchSize?: number;
   authors?: DouyinAuthorRule[];
   mixes?: DouyinMixRule[];
+  author_times?: string[];
+  authorTimes?: string[];
+  mix_times?: string[];
+  mixTimes?: string[];
+  forceAll?: boolean;
+  now?: Date;
   customTransport?: (path: string, params?: Record<string, unknown>) => Promise<any>;
   customFetcher?: (url: string, init?: RequestInit) => Promise<Response>;
   customOcr?: (images: string[]) => Promise<string>;
