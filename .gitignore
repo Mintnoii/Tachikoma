@@ -24,3 +24,7 @@ packages/guard/target/
 # ASR Sidecar 的二进制与模型权重（体积大，按 README 自行下载）
 services/asr/bin/
 services/asr/models/
+
+# 内部开发过程文档
+AUDIT_REPORT.md
+PROJECT_DEVELOPMENT_REPORT.md

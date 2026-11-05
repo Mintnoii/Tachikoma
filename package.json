@@ -5,6 +5,13 @@
   "type": "module",
   "description": "Tachikoma — 个人第二大脑统一多模态情报摄入引擎",
   "scripts": {
+    "svc": "node --import tsx scripts/service.ts",
+    "svc:status": "node --import tsx scripts/service.ts status",
+    "svc:start": "node --import tsx scripts/service.ts start",
+    "svc:stop": "node --import tsx scripts/service.ts stop",
+    "svc:restart": "node --import tsx scripts/service.ts restart",
+    "svc:autostart:off": "node --import tsx scripts/service.ts autostart:disable",
+    "svc:autostart:on": "node --import tsx scripts/service.ts autostart:enable",
     "build": "pnpm --filter @tachikoma/cli build",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/**/*.test.ts"

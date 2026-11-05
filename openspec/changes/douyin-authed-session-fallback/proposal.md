@@ -8,7 +8,7 @@
 
 抖音单条匿名解析已实测全线失效：三条不同作品（`5BKzcil9tiQ` / `elQVkRRk3I8` / `tP-JsTapVuU`）分享页均返回空壳，`videoInfoRes` / `item_list` / `RENDER_DATA` / `__INITIAL_STATE__` 全部缺失；接口直连返回 `403 Blocked by ArgusSecurityPlugin Uifid Not Found`。收藏夹路径同样不可用：匿名上下文打开 `douyin.com/user/self?showTab=favorite_collection` 落在「验证码中间页」。
 
-**关键实测结论：登录态并没有丢。** 旧 Python 项目 `C:/Users/wangqing/Desktop/douyin-sync/.pw-profile` 是 Playwright 持久化 profile，实测：
+**关键实测结论：登录态并没有丢。** 旧 Python 项目 `<home>/Desktop/douyin-sync/.pw-profile` 是 Playwright 持久化 profile，实测：
 
 - 打开收藏夹页落地 URL 正常，非验证码页；
 - Cookie 47 条，`sessionid` / `sessionid_ss` / `sid_tt` 齐全；

@@ -1,103 +1,116 @@
 ---
 type: meta
-title: "AGENTS.md — Tachikoma 跨 Agent 唯一真理源与工程规约"
-created: 2026-10-31T03:00:00+08:00
-updated: 2026-10-31T03:00:00+08:00
-tags: [meta, cross-agent, truth-source, architecture, tachikoma, ingest]
-status: evergreen
+title: "AGENTS.md — Tachikoma 工程规约与贡献指南"
+updated: 2026-11-05
+tags: [meta, architecture, contributing, tachikoma]
 ---
 
-# AGENTS.md — Tachikoma 跨 Agent 唯一真理源与工程规约
+# AGENTS.md — Tachikoma 工程规约
 
-> ⚠️ **所有 Agent（Claude Code、Codex、Pi、Gemini 等）在此仓库工作时必须严格遵循本文档。**  
-> 本文件为 `Tachikoma` 局部自包含宪法。核心原则：**AI 是执行者，qing 是判断者；代码与架构是持久资产，对话仅是运行时交互。**
+> 供 AI 编码助手（Claude Code、Codex、Gemini 等）与人类贡献者在此仓库工作时遵循。
 
 ---
 
-## 1. 系统定位与核心职责
+## 1. 系统定位
 
-**Tachikoma（塔奇克马）** 是全机唯一个人第二大脑（Ghost）统一多模态情报摄入引擎（Universal Ingestion Engine）。
+**Tachikoma** 是一个多模态内容摄入引擎（pnpm Monorepo），将网页长文、抖音视频图文与灵感碎片统一收归本地知识库。
 
-### 1.1 核心使命
-- **统一入口**：取代割裂的 `ob-clipper` 与 `douyin-sync`，上层统一对外提供极简输入能力；
-- **重构治理**：
-  - 将原 Python 版本的 `douyin-sync` 重构成现代 TypeScript 子应用（`apps/douyin-sync`），负责监听收藏夹、绕过风控、音视频下载与图集 OCR 转录；
-  - 将原 `ob-clipper` 重构为网页/推文提纯子应用（`apps/web-clipper`）；
-- **输出规范**：摄入结果严格对齐 Ghost RFC-2026-0922 契约，直通 `Ghost/_raw/` 不可变底座。
+**三条摄入轨道：**
+- **轨道 A**：`tachikoma capture <URL>` —— 网页 / 推文剪藏，落盘为 RFC-2026-0922 格式 Markdown
+- **轨道 B**：`tachikoma spark` —— 灵感碎片毫秒级落盘本地 SQLite（`.sparks/sparks.db`），支持后续语义提纯与升格
+- **轨道 C**：`tachikoma sync` —— 抖音收藏夹、创作者主页与合集专栏三轨增量对账同步
+
+**输出契约：**
+- 摄入结果落盘目录由 `GHOST_RAW_DIR` 环境变量控制，默认自动探测同级知识库 `_raw/` 目录，兜底至 `output/`
+- 底座文件 100% 只读不可变，严禁在摄入阶段做 LLM 增强或覆写
+- 格式规范见 `packages/core/src/formatter.ts`（RFC-2026-0922）
 
 ---
 
-## 2. 仓库架构与拓扑 (Workspace Topology)
+## 2. 仓库拓扑
 
 ```text
 Tachikoma/ (pnpm Monorepo)
 ├── apps/
-│   ├── cli/             # 统一摄入门面命令行（tachikoma ingest / sync）
-│   ├── douyin-sync/     # 【专职重构子 App】抖音收藏夹轮询、图文多模态 OCR、转录对账
-│   └── web-clipper/     # 【专职重构子 App】基于 CDP/Readability 的网页推文 DOM 提纯
+│   ├── cli/             # 统一命令行门面（capture / sync / spark）
+│   ├── douyin-sync/     # 抖音三轨增量对账、OCR、ASR 语音转录
+│   └── web-clipper/     # CDP / Readability 网页推文 DOM 提纯
 ├── packages/
-│   ├── core/            # 核心抽象契约、TypeBox Schema、RFC-2026-0922 格式化
-│   └── guard/           # Rust 编写的静态无黑框守护二进制（tachikoma-guard.exe）
-│                        #   职责：定时收藏夹同步 + 本地 ASR 服务（services/asr）拉起与探活自愈
+│   ├── core/            # 核心契约、TypeBox Schema、RFC 格式化器、Sparks SQLite 引擎
+│   └── guard/           # Rust 无黑框后台守护进程（夜间自动调度 + ASR 探活自愈）
 ├── services/
-│   └── asr/             # 本地 faster-whisper 转写 Sidecar（OpenAI Audio 兼容 HTTP）
-├── openspec/            # OpenSpec 架构规约驱动目录（specs 与 changes）
-├── AGENTS.md            # 本文件：项目跨 Agent 行为宪法
-└── README.md            # 项目全景说明
+│   └── asr/             # 本地 whisper.cpp ASR Sidecar（OpenAI Audio 兼容 HTTP）
+├── openspec/            # 规约驱动变更提案（specs / changes）
+└── tests/               # Vitest 单元与集成测试
 ```
 
 ---
 
-## 3. 起手编码审美门禁（强制第一性原则）
+## 3. 编码规约（起手强制执行）
 
-- **工具库三剑客强制使用**：
-  - 路径处理 100% 依托 `pathe`，严禁原生路径拼接与 Windows 斜杠硬编码；
-  - 流式与集合变换 100% 依托 `radash`（`tryit`, `unique`, `sift` 等），严禁业务层裸写 `try/catch` 样板或手写过程式 `for` 游标；
-  - 强类型契约 100% 依托 `@sinclair/typebox`，杜绝散落的 `Array.isArray` 防御八股；
-- **严禁 VBS / PowerShell 脚本胶水**：后台常驻与守护统一走 `packages/guard` Rust 编译产物；
-- **外部能力接入形态约束**：第三方推理/工具能力要么以纯 TS / Rust 代码实现，要么以**无解释器二进制**（如 whisper.cpp 的 `whisper-server.exe`）接入并由 guard 托管；严禁为图省事引入 Python（含 venv / pip / requirements.txt）或其他解释器运行时；
-- **包管理器**：全工程严格使用 `pnpm`。
+**工具库强制使用，严禁手搓替代：**
+- 路径操作 → `pathe`（`resolve` / `dirname` / `basename`），严禁原生 `path` 或手拼斜杠
+- 集合与流式处理 → `radash`（`tryit` / `unique` / `sift`），严禁裸写 `try/catch` 或过程式 `for` 游标
+- 强类型契约 → `@sinclair/typebox`，严禁散落的 `Array.isArray` 防御八股
 
----
-
-## 4. 抖音解析链路与失败诊断规约 (Douyin Ingestion Resilience)
-
-单条作品提取策略（2026-11-03 按实测收敛）：
-`有登录态 → 持久化上下文 → 页内同源 XHR（必带 device_platform=webapp&aid=6383）` $\to$ `命中文图过滤(images_base)则切 /note/{id} 重试一次` $\to$ `DOM 启发式兜底`。
-匿名无 cookie 时页面会跳 m.douyin.com 分享页，其 `_ROUTER_DATA` 是匿名通道唯一数据来源；www 页面早已不注入 SSR 变量，`<script id="RENDER_DATA">` 解析路径已删除。
-
-### 4.1 失败分类语义 (DouyinExtractionReason)
-- **`ssr-no-item`**：页面 SSR 变量与 RENDER_DATA 均未包含有效作品数据对象；
-- **`bridge-empty`**：同源桥接器（`BrowserBridge`）执行结果未通过契约收窄（返回值为空、非对象或缺失契约字段）；
-- **`api-forbidden`**：页内 XHR 或同源接口返回 HTTP 403 被平台反爬拦截；
-- **`images-filtered`**：详情接口按请求上下文过滤图文作品（`filter_detail.filter_reason = images_base`），作品通常并未下架；
-- **`dom-fallback-empty`**：所有结构化数据提取全线落空，且 DOM/og 兜底提取亦无实质有效正文。
-
-### 4.2 诊断与置信度契约
-- 提取失败时必须抛出 `DouyinExtractionError`，携带 `reason` 与已尝试的 `attempts` 路径清单，严禁裸 TypeError 穿透；
-- 当仅通过 DOM 兜底命中时，标记 `confidence = "dom-fallback"`，CLI 回执提示正文可能不完整，建议后续执行 `spark distill` 补齐；
-- 提取失败时严禁在 `sparks.db` 留下半成品脏记录。
-
-### 4.3 页内脚本执行铁律 (In-Page Script Execution)
-
-- **禁止把函数源码字符串直接丢给 `page.evaluate`**：Playwright 只在收到函数值时才带参调用，传 `"async (x) => {...}"` 这类字符串会被当表达式求值，得到函数对象后序列化回 Node 变成 `undefined`，且**不报错**；
-- **统一走 `toPageScript()`**（`packages/core/src/browser.ts`）：`page.evaluate(toPageScript(SCRIPT), arg)`，保留字符串常量形态且不引入 DOM 类型依赖；
-- **判据**：看到 `evaluate 返回值为空或非对象`、或多路径提取全空但页面肉眼有内容，优先怀疑此坑，而非平台改版；
-- **图文作品必须带 `device_platform=webapp&aid=6383`**：缺省时抖音返回 `aweme_detail: null` + `filter_reason: images_base`；落地页也必须是作品页本身（`www.douyin.com/note/{id}`），分享页上下文不予放行。
-
-### 4.4 登录态通道与自动兜底规约 (Authed Session Fallback)
-- **Profile 隔离存储**：登录态严格隔离持久化于 `<workspace>/.secrets/douyin-profile`，永不提交版本库（`.gitignore` 门禁）；
-- **匿名失败自动兜底**：单条抖音作品优先纯内存匿名提取；若全败且探活本机 Profile 处于已登录态（`authed`），自动以持久化会话重试一次，成功回执与卡片标记 `confidence = "authed-session"` 与 `source = "authed-session"`；
-- **同步强前置守卫**：`tachikoma sync` 必须携带已登录 Profile，未登录时直接明确报错拦截，严禁以匿名上下文进入收藏夹抓取循环；
-- **合集专栏与作者主页不可变绑定规约 (Immutable Folder Binding)**：
-  - 作者主页落盘至 `Ghost/_raw/douyin/authors/<nickname>/`
-  - 合集专栏落盘至 `Ghost/_raw/douyin/mixes/<mixName>/`
-  - 物理目录计算 100% 绑定自本地配置规则中的 `mix.name`，完全忽略网络端动态名称，对外部作者在平台改名实现绝对免疫；断点检查点（`sync_checkpoints`）与增量对账按不可变的 `mix_id` 唯一锁死。
+**其他铁律：**
+- 包管理器统一 `pnpm`，严禁 npm / yarn
+- 严禁引入 Python 运行时（含 venv / pip）；外部二进制能力由 Rust Guard 托管
+- 严禁 VBS / PowerShell 脚本胶水；服务管理统一走 `scripts/service.ts`（`pnpm svc:*`）
+- 登录凭据严格隔离于 `.secrets/`，永不提交版本库
 
 ---
 
-## 5. Python 版重构差异与架构取舍 (Architectural Trade-offs)
+## 4. 后台服务生命周期
 
-从原 Python 版 `douyin-sync` 迁移重构时，以下两项旧版特性显式不予在当前版本实现：
-- **`note_enhance` (LLM 结构化增强与抽帧)**：旧版在摄入期调 LLM 进行总结，但 Ghost 系统拥有下游专属的演化炼化流水线（`Ghost/.pi/lib/pipeline.ts`），`_raw/` 底座应遵循 100% 只读原声不可变原则，保留裸转录原稿最纯粹；
-- **`downloadMedia` (全量本地音视频与封面落地)**：旧版默认把几百 MB 的 `.mp4` 文件保存在本地，易导致硬盘空间迅速膨胀。当前版本坚持“内存流式抽音频转录、不落盘巨型视频文件”的轻量化设计，严防垃圾视频占用磁盘空间。
+```bash
+pnpm svc:status          # 查看 Guard / Whisper / 自启状态
+pnpm svc:start           # 启动后台守护（夜间 02:00~08:00 自动轮询）
+pnpm svc:stop            # 彻底关闭全部后台服务
+pnpm svc:restart         # 重启
+pnpm svc:autostart:on    # 注册 Windows 开机自启
+pnpm svc:autostart:off   # 取消开机自启
+```
+
+---
+
+## 5. 抖音解析链路规约
+
+**单条作品提取优先级链（2026-11-03 收敛）：**
+
+```
+有登录态持久化上下文
+  → 页内同源 XHR（必带 device_platform=webapp&aid=6383）
+  → 命中图文过滤(images_base) → 切 /note/{id} 重试
+  → DOM 启发式兜底
+匿名无 Cookie
+  → m.douyin.com 分享页 _ROUTER_DATA（唯一匿名数据来源）
+```
+
+**失败分类语义（`DouyinExtractionReason`）：**
+
+| reason | 含义 |
+|---|---|
+| `ssr-no-item` | 页面 SSR 变量与 RENDER_DATA 均无有效作品数据 |
+| `bridge-empty` | 同源桥接器返回值为空或缺失契约字段 |
+| `api-forbidden` | 页内 XHR 返回 403，被平台反爬拦截 |
+| `images-filtered` | 详情接口过滤图文作品（`filter_reason: images_base`），作品未下架 |
+| `dom-fallback-empty` | 所有结构化路径落空，DOM/og 兜底亦无实质正文 |
+
+**页内脚本执行铁律：**
+- 严禁把函数源码字符串直接传给 `page.evaluate`（Playwright 会将字符串当表达式求值，返回 `undefined` 且不报错）
+- 统一使用 `toPageScript()`（`packages/core/src/browser.ts`）：`page.evaluate(toPageScript(SCRIPT), arg)`
+- 图文作品请求必须携带 `device_platform=webapp&aid=6383`，落地页必须是 `www.douyin.com/note/{id}`
+
+**不可变路径绑定（Immutable Folder Binding）：**
+- 落盘物理目录 100% 绑定本地配置中的 `mix.name`，完全忽略平台端动态名称，对博主改名绝对免疫
+- 断点检查点（`sync_checkpoints`）与增量对账按不可变的 `mix_id` 唯一锁死
+
+---
+
+## 6. 变更提案流程（OpenSpec）
+
+重大功能或架构调整在 `openspec/changes/<name>/` 下立项：
+- `proposal.md`：背景、目标、非目标、技术方案
+- `design.md`（可选）：详细设计
+- `tasks.md`：可执行任务清单，逐项勾选推进

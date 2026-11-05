@@ -23,7 +23,7 @@ fn silent(cmd: &mut Command) {
 }
 
 fn get_log_file() -> PathBuf {
-    let home = env::var("USERPROFILE").unwrap_or_else(|_| "C:\\Users\\wangqing".to_string());
+    let home = env::var("USERPROFILE").or_else(|_| env::var("HOME")).unwrap_or_default();
     Path::new(&home).join(".tachikoma").join("guard.log")
 }
 
@@ -226,45 +226,143 @@ impl AsrSupervisor {
         }
         self.spawn();
     }
+
+    /// 停止由 Supervisor 托管的 ASR 服务并清理句柄
+    fn stop(&mut self) {
+        if let Some(mut child) = self.child.take() {
+            let pid = child.id();
+            let _ = child.kill();
+            let _ = child.wait();
+            log(&format!("已主动停止 ASR 服务进程 (pid: {})", pid));
+        }
+    }
+}
+
+/// 获取当前本地时间的小时（0..23），零第三方外部 crate 依赖
+fn current_local_hour() -> u32 {
+    #[cfg(windows)]
+    {
+        #[repr(C)]
+        struct SystemTime {
+            w_year: u16,
+            w_month: u16,
+            w_day_of_week: u16,
+            w_day: u16,
+            w_hour: u16,
+            w_minute: u16,
+            w_second: u16,
+            w_milliseconds: u16,
+        }
+
+        extern "system" {
+            fn GetLocalTime(lp_system_time: *mut SystemTime);
+        }
+
+        let mut st = SystemTime {
+            w_year: 0,
+            w_month: 0,
+            w_day_of_week: 0,
+            w_day: 0,
+            w_hour: 0,
+            w_minute: 0,
+            w_second: 0,
+            w_milliseconds: 0,
+        };
+        unsafe {
+            GetLocalTime(&mut st);
+        }
+        st.w_hour as u32
+    }
+    #[cfg(not(windows))]
+    {
+        let secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        // 简易东八区推算 (UTC+8)
+        ((secs + 8 * 3600) % 86400 / 3600) as u32
+    }
+}
+
+/// 判断当前小时是否在指定的窗口内 [start_hour, end_hour)
+fn is_in_time_window(current_hour: u32, start: u32, end: u32) -> bool {
+    if start <= end {
+        current_hour >= start && current_hour < end
+    } else {
+        // 跨午夜场景，例如 22点到次日6点
+        current_hour >= start || current_hour < end
+    }
 }
 
 fn main() {
     log("Tachikoma Guard 无黑框原生守护进程已启动。");
 
-    let home = env::var("USERPROFILE").unwrap_or_else(|_| "C:\\Users\\wangqing".to_string());
-    let tachikoma_dir = Path::new(&home).join("Desktop").join("Tachikoma");
-    let ghost_raw_dir = Path::new(&home).join("Desktop").join("Ghost").join("_raw");
+    let home = env::var("USERPROFILE").or_else(|_| env::var("HOME")).unwrap_or_default();
+    let tachikoma_dir = env::var("TACHIKOMA_HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| Path::new(&home).join("Desktop").join("Tachikoma"));
+    let ghost_raw_dir = env::var("GHOST_RAW_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| Path::new(&home).join("Desktop").join("Ghost").join("_raw"));
 
-    // 默认每隔 30 分钟轮询同步一次（1800 秒）；设为 0 表示只守护 ASR、不跑同步
-    let interval_secs = env::var("TACHIKOMA_SYNC_INTERVAL_SECS")
+    // 时间窗口：默认仅在凌晨 02:00 ~ 08:00 期间运行
+    let window_start: u32 = env::var("TACHIKOMA_SYNC_WINDOW_START")
         .ok()
-        .and_then(|s| s.parse::<u64>().ok())
-        .unwrap_or(1800);
-    let sync_enabled = interval_secs > 0;
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(2);
+    let window_end: u32 = env::var("TACHIKOMA_SYNC_WINDOW_END")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(8);
+
+    // 轮询间隔：默认 1 小时 (3600 秒)
+    let interval_secs: u64 = env::var("TACHIKOMA_SYNC_INTERVAL_SECS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(3600);
 
     let mut asr = AsrSupervisor::new(&tachikoma_dir);
+    let mut last_sync_time: Option<Instant> = None;
+    let mut logged_outside = false;
 
-    // 略等系统就绪先拉起 ASR；模型懒加载，不占用启动时间
-    sleep(Duration::from_secs(5));
-    asr.ensure();
+    log(&format!(
+        "守护调度策略配置完成：运行窗口 [{:02}:00 ~ {:02}:00)，轮询间隔 {} 秒",
+        window_start, window_end, interval_secs
+    ));
 
-    // 再等网络与代理稳定，执行首次同步
-    sleep(Duration::from_secs(10));
-    if sync_enabled {
-        run_sync(&tachikoma_dir, &ghost_raw_dir);
-    } else {
-        log("收藏夹同步已禁用 (TACHIKOMA_SYNC_INTERVAL_SECS=0)，本进程仅守护 ASR 服务");
-    }
-
-    let mut elapsed = 0u64;
     loop {
-        sleep(Duration::from_secs(10));
-        elapsed += 10;
-        asr.ensure();
+        let current_hour = current_local_hour();
+        let in_window = is_in_time_window(current_hour, window_start, window_end);
 
-        if sync_enabled && elapsed >= interval_secs {
-            run_sync(&tachikoma_dir, &ghost_raw_dir);
-            elapsed = 0;
+        if in_window {
+            logged_outside = false;
+            // 1. 处于 02:00 ~ 08:00 活跃窗口：确保 ASR 服务拉起并健康
+            asr.ensure();
+
+            // 2. 检查是否达到同步间隔（进入窗口立即触发首次，之后每隔 1 小时轮询）
+            let should_sync = match last_sync_time {
+                None => true,
+                Some(last) => last.elapsed() >= Duration::from_secs(interval_secs),
+            };
+
+            if should_sync {
+                run_sync(&tachikoma_dir, &ghost_raw_dir);
+                last_sync_time = Some(Instant::now());
+            }
+        } else {
+            // 不在窗口期（08:00 ~ 次日 02:00）：休眠节电，关闭 ASR 释放显存/内存
+            if !logged_outside {
+                log(&format!(
+                    "当前时间 {:02}:xx 已离开活跃窗口 [{:02}:00 ~ {:02}:00)，自动停止 ASR 服务并进入休眠守候...",
+                    current_hour, window_start, window_end
+                ));
+                logged_outside = true;
+            }
+            asr.stop();
+            last_sync_time = None; // 离开窗口后重置计时器，次日 02:00 准时再次触发
         }
+
+        // 每隔 15 秒轻量探针一次时钟状态
+        sleep(Duration::from_secs(15));
     }
 }

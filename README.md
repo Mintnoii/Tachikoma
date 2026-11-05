@@ -1,34 +1,110 @@
-# Tachikoma (塔奇克马)
+# Tachikoma（塔奇克马）
 
-> 攻壳机动队敏捷情报战车 —— 个人第二大脑（Ghost）统一多模态情报摄入引擎。
+> 攻壳机动队敏捷情报战车 —— 多模态内容摄入引擎，将网页长文、抖音视频与灵感碎片统一收归本地知识库。
+
+## 功能概览
+
+- **网页 / 推文剪藏**：`tachikoma capture <URL>` —— 提纯正文，落盘为标准 Markdown
+- **抖音三轨增量同步**：`tachikoma sync` —— 收藏夹、创作者主页与合集专栏，图文 OCR + 语音转录，断点续传
+- **战术灵感碎片流**：`tachikoma spark` —— 毫秒级落盘本地 SQLite，支持后续语义提纯与升格
 
 ## 架构
 
-- **`apps/cli`**：统一交互门面（`tachikoma capture <URL>` / `tachikoma sync` / `tachikoma spark`）；
-- **`apps/douyin-sync`**：抖音三轨增量同步（收藏夹、创作者主页与合集专栏）、不可变路径绑定（Immutable Folder Binding）、专栏权威优先制（Mixes > Authors > Collections）、图文多模态 OCR、ASR 语音转录与游标断点对账；
-- **`apps/web-clipper`**：轻量 CDP / Readability 微信推文与技术文章 DOM 纯化与标题墓碑拦截；
-- **`packages/core`**：核心抽象契约、TypeBox Schema、RFC-2026-0922 格式化器、Sparks 战术灵感库（SQLite WAL + FTS5）与 Ghost `_raw/` 落盘对账引擎；
-- **`packages/guard`**：Rust 静态无控制台后台常驻守护程序（`tachikoma-guard.exe`）。
+```text
+Tachikoma/ (pnpm Monorepo)
+├── apps/
+│   ├── cli/          # 统一命令行门面（capture / sync / spark）
+│   ├── douyin-sync/  # 抖音三轨增量对账、OCR、ASR 语音转录
+│   └── web-clipper/  # CDP / Readability 网页推文 DOM 提纯
+├── packages/
+│   ├── core/         # 契约、TypeBox Schema、RFC-2026-0922 格式化器、Sparks SQLite 引擎
+│   └── guard/        # Rust 无黑框后台守护进程（夜间自动调度同步）
+└── services/
+    └── asr/          # 本地 whisper.cpp ASR Sidecar（OpenAI Audio 兼容接口）
+```
 
-## 核心特性
+## 环境要求
 
-1. **三大轨道全覆盖**：
-   - **轨道 A**：长文/公众号/推文剪藏（`tachikoma capture` $\rightarrow$ `Ghost/_raw/articles/`）；
-   - **轨道 B**：战术灵感碎片流（`tachikoma spark` $\rightarrow$ 本地 `sparks.db` 毫秒级落盘，支持后续自主升格）；
-   - **轨道 C**：抖音三轨增量对账同步（`tachikoma sync` $\rightarrow$ 收藏夹、`authors/` 作者专栏与 `mixes/` 不可变合集专栏）。
-2. **专栏权威优先制 (Mixes > Authors > Collections)**：
-   - 彻底消灭外部合集视频被手动加收藏后在本地存两份的冗余，体系化专栏优先入库，个人收藏夹自动享受全局去重；
-3. **不可变路径绑定 (Immutable Folder Binding)**：
-   - 落盘物理目录 100% 绑定自本地配置规则，对远程博主在平台频繁改名绝对免疫；
-4. **创作者定位关键词过滤与差异化计划时刻门控**：
-   - 支持作者主页按 `positioning_keywords` 过滤作品标题/文案，非定位领域内容自动跳过，保持专栏高纯度；
-   - 支持 `author_times` 与 `mix_times` 差异化计划时刻（支持跨午夜判定），按需低频门控调度作者与合集专栏，未到期自动跳过，支持 `--force-all` 强制执行。
+| 依赖 | 版本 | 说明 |
+|---|---|---|
+| Node.js | >= 20 | 运行 TS 核心与 CLI |
+| pnpm | >= 9 | 包管理器，严禁 npm / yarn |
+| Rust + Cargo | stable | 编译 `packages/guard` 守护进程 |
+| Windows 10/11 | — | Guard 为 Windows 专属；CLI / web-clipper 跨平台 |
+| ffmpeg | 任意版本 | 视频转录前的音频预处理（`ffmpeg` 需在 PATH，或通过 `TACHIKOMA_FFMPEG_BIN` 指定路径） |
+| NVIDIA GPU | 可选 | 本地 ASR 推理加速（无 GPU 自动降级 CPU 模式，速度较慢） |
 
-## Python 版重构差异与架构取舍 (Architectural Trade-offs)
+**本地 ASR（可选，抖音视频转录用）：**
+- 下载 [whisper.cpp](https://github.com/ggml-org/whisper.cpp) Windows 预编译包，解压至 `services/asr/bin/`
+- 下载 ggml 模型权重（如 `ggml-medium.bin`）至 `services/asr/models/`
+- 详细步骤见 [`services/asr/README.md`](services/asr/README.md)
+- 不安装 ASR 时抖音视频只抓文字内容，不影响其他功能
 
-在将原 Python 版本 `douyin-sync` 重构为现代 TypeScript 架构时，遵循第一性原理进行以下关键取舍：
-1. **保留裸转录原声底座（不引入 `note_enhance`）**：
-   - 旧版在摄入阶段调用 LLM 进行结构化增强与抽帧。但在全机 Bebop/Ghost 体系中，Ghost 拥有下游专职的认知演化流水线（`Ghost/.pi/lib/pipeline.ts`）。`_raw/` 底座必须遵循 100% 只读原声不可变原则，保留最纯粹的 ASR 语音原稿与 OCR 图文原貌，由下游按需炼化；
-2. **轻量化流式转录（不落盘巨型视频 `downloadMedia`）**：
-   - 旧版默认将数百 MB 的 `.mp4` 视频全量保存至本地，导致存储迅速膨胀。当前版本坚持“内存流式抽音频转录、直接提取图文正文、不落地巨型视频文件”的轻量化纯净设计，严守 Zero-Dirty-Card 纯净契约。
+## 安装
 
+```bash
+git clone https://github.com/your-username/tachikoma.git
+cd tachikoma
+pnpm install
+pnpm build
+```
+
+## 配置
+
+通过环境变量或 `.env` 文件控制关键路径（无需修改代码）：
+
+| 变量 | 说明 | 默认值 |
+|---|---|---|
+| `TACHIKOMA_HOME` | 项目根目录（优先于自动探测） | 自动向上寻访 `pnpm-workspace.yaml` |
+| `GHOST_RAW_DIR` | 摄入结果落盘目录 | 自动探测同级 `<知识库>/_raw/`，兜底至 `output/` |
+| `TACHIKOMA_SPARKS_DB` | Sparks 灵感数据库路径 | `<root>/.sparks/sparks.db` |
+| `TACHIKOMA_SYNC_WINDOW_START` | 夜间调度窗口开始小时 | `2`（凌晨 02:00） |
+| `TACHIKOMA_SYNC_WINDOW_END` | 夜间调度窗口结束小时 | `8`（上午 08:00） |
+
+**抖音同步规则**配置见 `apps/douyin-sync/config/sync_rules.yaml`（收藏夹名称、作者主页、合集专栏白名单）。
+
+> ⚠️ 抖音登录态存储于 `.secrets/douyin-profile/`，已加入 `.gitignore`，永不提交版本库。首次使用需执行 `tachikoma sync --login` 完成浏览器登录授权。
+
+## 快速上手
+
+```bash
+# 剪藏一篇网页文章
+tachikoma capture https://example.com/article
+
+# 灵感碎片随手记
+tachikoma spark add "今天想到一个点..."
+
+# 抖音收藏夹增量同步（首次需登录）
+tachikoma sync --login   # 仅首次
+tachikoma sync           # 后续增量
+
+# 查看 Sparks 灵感库
+tachikoma spark list
+```
+
+## 后台服务管理
+
+Rust Guard 守护进程负责夜间自动调度同步与 ASR Sidecar 拉起，默认在凌晨 02:00 ~ 08:00 活跃：
+
+```bash
+pnpm svc:status          # 查看 Guard 与 Whisper 状态
+pnpm svc:start           # 启动后台守护
+pnpm svc:stop            # 关闭全部后台服务
+pnpm svc:restart         # 重启
+pnpm svc:autostart:on    # 注册 Windows 开机自启
+pnpm svc:autostart:off   # 取消开机自启
+```
+
+## 核心设计取舍
+
+**不落盘视频文件**：内存流式抽取音频转录，不保存 `.mp4`，避免存储膨胀。
+
+**不在摄入期调 LLM 增强**：摄入结果保留原声底座（原始 OCR 文本 / ASR 转录稿），语义提纯交由下游知识库流水线按需处理，`_raw/` 底座 100% 只读不可变。
+
+**不可变路径绑定**：抖音合集专栏的落盘目录 100% 绑定本地配置中的 `mix.name`，对远程博主改名绝对免疫。
+
+**专栏权威优先制（Mixes > Authors > Collections）**：消灭同一视频被手动加收藏后在本地重复落盘的问题。
+
+## License
+
+MIT

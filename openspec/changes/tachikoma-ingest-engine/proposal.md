@@ -65,6 +65,6 @@
 
 ## 3. 影响评估（Impact）
 
-- **新增/重构工程**：`C:\Users\wangqing\Desktop\Tachikoma`
+- **新增/重构工程**：`<workspace>/Tachikoma`
 - **上层协同**：dotagents skills 中将新增统一的 `tachikoma` 技能，取代割裂的调用路径；
 - **Ghost 兼容性**：100% 保持输出至 `Ghost/_raw/` 的不可变底座契约。
