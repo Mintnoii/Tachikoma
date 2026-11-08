@@ -17,10 +17,17 @@ import {
   promoteSparkToGhost,
   distillText,
   getTachikomaWorkspacePaths,
+  extractDouyinUrlOrId,
   type SparkRecord,
   SparkType,
   SparkStatus,
 } from "@tachikoma/core";
+import {
+  fetchAwemeDetailWithTranscript,
+  createAudioTranscriber,
+  resolveDouyinProfileDir,
+} from "@tachikoma/douyin-sync";
+import { extractContentSummary } from "./cli.js";
 
 function reportSparksError(msg: string): void {
   console.error(pc.red(`[Tachikoma Sparks] ${msg}`));
@@ -142,6 +149,57 @@ export function registerSparkCommands(program: Command): Command {
           cluster: options.cluster,
           assetsDir,
           timeoutMs: 8000,
+          urlHandler: async (detectedUrl: string, rawInputText: string) => {
+            const extracted = extractDouyinUrlOrId(detectedUrl);
+            const isDouyin = Boolean(
+              (extracted.url && /(douyin\.com|iesdouyin\.com)/i.test(extracted.url)) ||
+              (extracted.awemeId && /^\d{15,22}$/.test(detectedUrl.trim()))
+            );
+            if (!isDouyin) return undefined;
+
+            console.log(pc.cyan(`[Tachikoma Sparks] 检测到抖音链接，执行富媒体提取与语音转录...`));
+            const profileDir = resolveDouyinProfileDir();
+            const audioTranscriber = createAudioTranscriber();
+            const [fetchErr, data] = await tryit(fetchAwemeDetailWithTranscript)(
+              extracted.url || detectedUrl,
+              {
+                customTranscribe: audioTranscriber,
+                profileDir,
+              }
+            );
+
+            if (fetchErr || !data?.aweme) {
+              return undefined;
+            }
+
+            const { aweme, transcript, ocrContent } = data;
+            const fallbackTitle = (aweme.desc || `抖音作品_${aweme.id}`)
+              .replace(/\s+/g, " ")
+              .trim()
+              .slice(0, 60);
+
+            const contentParts = sift([
+              aweme.desc?.trim(),
+              transcript ? `🎙️ 音频转录:\n${transcript}` : undefined,
+              ocrContent ? `🖼️ OCR转录:\n${ocrContent}` : undefined,
+            ]);
+            const finalContent = contentParts.length > 0 ? contentParts.join("\n\n") : fallbackTitle;
+
+            const authorTag = aweme.author.nickname
+              ? `#${aweme.author.nickname.replace(/[\s#,，]/g, "")}`
+              : undefined;
+            const mediaTag = aweme.mediaType === "gallery" ? "#图集" : "#短视频";
+            const autoTags = unique(sift(["#抖音", mediaTag, authorTag]));
+
+            return {
+              type: "fleeting",
+              title: fallbackTitle,
+              content: finalContent,
+              sourceUrl: aweme.shareUrl || detectedUrl,
+              tags: autoTags,
+              status: "seed",
+            };
+          },
         });
         closeSparksDb(db);
 

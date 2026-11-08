@@ -149,7 +149,7 @@ export function loadSyncRulesConfig(customConfigPath?: string): SyncRulesConfig 
     return emptyConfig;
   }
 
-  const [parseErr, parsed] = tryit(parse)(raw) as [Error | undefined, Record<string, any>];
+  const [parseErr, parsed] = tryit(() => parse(String(raw)))() as [Error | undefined, Record<string, any>];
   if (parseErr || !parsed) {
     console.warn(`[DouyinSync] 解析规则配置 YAML 失败: ${targetPath}`, parseErr);
     return emptyConfig;

@@ -77,6 +77,20 @@ export async function refineSparkInput(
   };
 
   if (kind === "url") {
+    if (options?.urlHandler) {
+      const handled = await options.urlHandler(rawInput, rawInput);
+      if (handled) {
+        return {
+          ...handled,
+          type: options?.type ?? handled.type,
+          title: options?.title ?? handled.title,
+          tags: unique([...(handled.tags ?? []), ...userTags]),
+          cluster: options?.cluster ?? handled.cluster,
+          status: handled.status ?? "seed",
+        };
+      }
+    }
+
     const meta = await extractUrlMetadata(
       rawInput,
       options?.fetchFn,

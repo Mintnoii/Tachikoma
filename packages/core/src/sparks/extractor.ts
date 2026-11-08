@@ -29,8 +29,8 @@ const IMAGE_EXTENSIONS = new Set([
 export function detectInputKind(input: string): SparkInputKind {
   const trimmed = input.trim();
 
-  // 1. URL 判定
-  if (/^https?:\/\//i.test(trimmed)) {
+  // 1. URL 判定：以 http 开头，或包含 http 且形如分享口令/包含短链
+  if (/^https?:\/\//i.test(trimmed) || /https?:\/\/[^\s]+/i.test(trimmed)) {
     return "url";
   }
 
@@ -62,7 +62,8 @@ export async function extractUrlMetadata(
   fetchFn?: typeof fetch,
   timeoutMs: number = 1000
 ): Promise<UrlExtractionResult> {
-  const trimmedUrl = rawUrl.trim();
+  const urlMatch = rawUrl.match(/https?:\/\/[^\s]+/i);
+  const trimmedUrl = (urlMatch ? urlMatch[0] : rawUrl).trim();
   const [urlErr, parsedUrl] = tryit((u: string) => new URL(u))(trimmedUrl);
   const hostname = !urlErr && parsedUrl ? parsedUrl.hostname : "unknown";
 

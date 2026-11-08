@@ -3,6 +3,7 @@ import {
   SparkType,
   SparkStatus,
   SPARK_CORE_CLUSTERS,
+  CreateSparkInput,
   type SparkCoreCluster,
   type SparkCluster,
 } from "../schema.js";
@@ -68,6 +69,7 @@ export interface RefineSparkOptions {
   llmOptions?: SparkLLMOptions;
   skipLlm?: boolean;
   imageTranscriber?: (dataUrl: string) => Promise<string>;
+  urlHandler?: (url: string, rawInput: string) => Promise<CreateSparkInput | undefined>;
 }
 
 /**
